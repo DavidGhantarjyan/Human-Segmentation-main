@@ -1,0 +1,102 @@
+data:
+  directories:
+    train_coco_data_dir: \CocoData\train_coco_dataset
+    val_coco_data_dir: \CocoData\val_coco_dataset
+    test_safe_to_desk: True #If True, images and masks will be saved to disk.
+    # If False, the data will only be returned as (input, target) pairs.
+    result_dir: Result\  # Directory for storing generated results
+    background_dir: Bg\  # Directory for background images
+    objects_dir: Obj\  # Directory for object images
+
+  output_settings:
+    merge_outputs: False  # If True, merges all outputs into a single folder
+    package_by_background: False  # If True, organizes results by background
+
+  object_placement_settings:
+    allow_out_of_bounds: True  # If True, allows objects to be placed partially outside the background
+    out_of_bounds_range: [ 0.1, 0.2]  # Relative size range for out-of-bounds placement
+    placement_distribution: gaussian  # Object placement: 'gaussian' or 'uniform'
+
+  image_generation_settings:
+    images_per_combination: 1  # Number of images generated per combination
+    objects_per_image_range: [ 1, 2]  # Min and max number of objects per image
+    object_scale_range: [ 0.9, 1.1 ]  # Scaling factor range for objects
+
+  background_blur_settings:
+    bg_blur_type: GaussianBlur  # Type of blur: 'GaussianBlur' or 'bilateralFilter'
+    bg_blur_probability: 0.5  # Reduced probability of applying blur (was 0.7)
+    bg_blur_kernel_range: [ 5, 9 ]  # Reduced kernel size range for blur (was (5, 9))
+#    blur_intensity_range: [ 15, 35 ]  # Reduced intensity range for bilateral blur (was (20, 50))
+
+  alpha_blur_settings:
+    alpha_blur_type: GaussianBlur  # Type of alpha blur
+    alpha_blur_kernel_range: [3, 7]  # Reduced kernel size range for alpha blur
+#    alpha_blur_intensity_range: [ 0, 25 ]  # Reduced intensity range for alpha blur
+
+  resize_setting:
+      resize_width: 320
+      resize_height: 180
+
+
+  noise_settings:
+    noise_type: gaussian  # Type of noise: 'uniform' or 'gaussian'
+    noise_level_range: [ 0.05, 0.1 ]  # Reduced noise intensity range (was (0.1, 0.2))
+
+  transformations:
+    flip_probability: 0.5  # Probability of flipping objects horizontally
+
+  output_format:
+    output_format: segmentation  # Output format: 'segmentation' or 'classification'
+
+  miscellaneous:
+    depth: True  # If True, considers depth when placing objects
+
+  rotation_settings:
+    foreground_rotation: False  # If True, applies rotation to foreground objects
+    background_rotation: True  # If True, applies rotation to backgrounds
+    background_rotation_angle: [ -30, 30 ]  # Rotation range for backgrounds
+    foreground_rotation_angle: [ -30, 30 ]  # Rotation range for foreground objects
+  color_jitter_settings:
+    jitter_probability: 0.5  # Probability of applying color jittering
+    brightness_range: [ 0.8, 1.2 ]  # Range for brightness adjustment
+    contrast_range: [ 0.8, 1.2 ]  # Range for contrast adjustment
+    saturation_range: [ 0.8, 1.2 ]  # Range for saturation adjustment
+    hue_range: [ -0.1, 0.1 ]  # Range for hue adjustment
+
+  dataset_settings:
+    scale_factor: 1.5  # Scaling factor for dataset images
+
+
+
+model:
+  id: 1  # Model identifier
+  name:  # Name of the model (empty, should be defined)
+  weights:  # Path to pre-trained weights (empty, should be defined)
+  create_new_model: False  # Whether to create a new model or use an existing one
+  saves_count: 0  # Number of times to save the model (0 means saving every epoch)
+  directory: train_results  # Directory to save training results
+
+train:
+  synthetic_mask_pre_calculation_mode: loss  # Mode for synthetic mask calculation (loss/dataloader)
+  natural_data_mask_saving:
+  natural_data_mask_pre_calculation_mode: loss  # Pre-calculation mode for natural data masks (empty, should be defined)
+  lr: -5  # Learning rate (seems incorrect, usually a small positive value)
+  epoch: 10  # Number of training epochs
+  workers: 0  # Number of workers for data loading (0 means main thread)
+  batch: 12  # Batch size for training
+  n_accum: 4  # Number of gradient accumulation steps
+  alpha: 1e-4
+  beta: 1.0
+  gamma: 1.0
+
+val:
+  mini_batch: 8  # Mini-batch size for validation
+  workers: 8  # Number of workers for validation data loading
+  every: 1  # Validate every N epochs
+
+verbose:
+  print: 2  # Level of printing detail
+  plot: true  # Whether to plot training progress
+#  #    # Count of examples to save per epoch
+#  #  # 0 or bigger then 2
+#  n_examples: 3
