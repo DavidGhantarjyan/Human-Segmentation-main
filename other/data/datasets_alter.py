@@ -62,9 +62,9 @@ class CustomBackgroundTransform:
 # Initialize custom transform with provided parameters
 custom_transform = CustomBackgroundTransform(
     rotation_enabled=background_rotation,
-    blur_kernel_range=blur_kernel_range,
-    blur_intensity_range=blur_intensity_range,
-    blur_probability=blur_probability,
+    # blur_kernel_range=blur_kernel_range,
+    # blur_intensity_range=blur_intensity_range,
+    # blur_probability=blur_probability,
     noise_level_range=noise_level_range,
     flip_probability=flip_probability,
     jitter_probability=jitter_probability,
@@ -221,9 +221,9 @@ class CustomBackgroundTransform:
 # Initialize custom transform with provided parameters
 custom_transform = CustomBackgroundTransform(
     rotation_enabled=background_rotation,
-    blur_kernel_range=blur_kernel_range,
-    blur_intensity_range=blur_intensity_range,
-    blur_probability=blur_probability,
+    # blur_kernel_range=blur_kernel_range,
+    # blur_intensity_range=blur_intensity_range,
+    # blur_probability=blur_probability,
     noise_level_range=noise_level_range,
     flip_probability=flip_probability,
     jitter_probability=jitter_probability,
@@ -300,8 +300,6 @@ class TripletTransform:
         # Reset random state for mask transformation or distance calculation
         np.random.set_state(np_random_state)
 
-        # mask@ (500, 381, 3) kam zero kam uint8
-        # irakaknum qani vor kam self.computing = natural_data_mask_pre_calculation_mode kam che
         if self.computing == 'dataloader':
             # Compute distance mask on the fly using DistanceCalculator
             dist_calcul = DistanceCalculator(target_image[0].unsqueeze(0) / 255).compute_distance_matrix_on_cpu()
@@ -439,96 +437,34 @@ class MixedDataset(Dataset):
         else:
             return self.synthetic_dataset[idx]
 
-#     train_coco_dataset = CocoDataset(
-#         cocodataset_path=train_coco_data_dir,
-#         transform=TripletTransform(
-#             input_transform=input_transform,
-#             target_transform=target_transform,
-#             mask_transform=mask_transform
-#         ))
+
+
+# ###############################################################################
+# # Dataset Initialization and Visualization
+# ###############################################################################
+# synthetic_dataset = SyntheticDataset(
+#     test_safe_to_desk=False,
+#     target_transform=base_transform,
+#     input_transform=input_transform_synthetic
+# )
 #
-#     synthetic_dataset = SyntheticDataset(
-#         test_safe_to_desk=False,
+# coco_dataset = CocoDataset(
+#     cocodataset_path=train_coco_data_dir,
+#     transform=TripletTransform(
+#         input_transform=input_transform,
+#         target_transform=target_transform,
+#         mask_transform=mask_transform
+#     ),
+# )
+#
+# val_dataset = CocoDataset(
+#     cocodataset_path=val_coco_data_dir,
+#     transform=TripletTransform(
+#         input_transform=base_transform,
 #         target_transform=base_transform,
-#         input_transform=input_transform_synthetic
-#     )
+#         mask_transform=base_transform
+#     ),
+# )
 #
-#     val_coco_dataset = CocoDataset(
-#         cocodataset_path=val_coco_data_dir,
-#         transform=TripletTransform(
-#             input_transform=base_transform,
-#             target_transform=base_transform,
-#             mask_transform=base_transform
-#         ))
+# dataset = MixedDataset(coco_dataset, synthetic_dataset, scale_factor=1.5)
 
-
-###############################################################################
-# Dataset Initialization and Visualization
-###############################################################################
-synthetic_dataset = SyntheticDataset(
-    test_safe_to_desk=False,
-    target_transform=base_transform,
-    input_transform=input_transform_synthetic
-)
-
-coco_dataset = CocoDataset(
-    cocodataset_path=train_coco_data_dir,
-    transform=TripletTransform(
-        input_transform=input_transform,
-        target_transform=target_transform,
-        mask_transform=mask_transform
-    ),
-    # pre_computing=natural_data_mask_saving
-)
-
-val_dataset = CocoDataset(
-    cocodataset_path=val_coco_data_dir,
-    transform=TripletTransform(
-        input_transform=base_transform,
-        target_transform=base_transform,
-        mask_transform=base_transform
-    ),
-    # pre_computing=natural_data_mask_saving
-)
-
-dataset = MixedDataset(coco_dataset, synthetic_dataset, scale_factor=1.5)
-
-# Visualize examples from the synthetic dataset
-for i in range(5):
-    input_img, target_img, dist_img = coco_dataset[i]
-    # Print min and max values for debugging purposes
-    # print("Input:", input_img.min(), input_img.max())
-    # print("Target:", target_img.min(), target_img.max())
-    # print("Mask:", dist_img.min(), dist_img.max())
-
-    # If input_img is a tensor, unnormalize it and convert to a NumPy array for display
-    if isinstance(input_img, torch.Tensor):
-        unnormalize = transforms.Normalize(mean=[-1, -1, -1], std=[2, 2, 2])
-        input_img = unnormalize(input_img)
-        input_np = input_img.permute(1, 2, 0).numpy()
-        input_np = (input_np * 255).astype(np.uint8)
-        input_bgr = cv2.cvtColor(input_np, cv2.COLOR_RGB2BGR)
-    else:
-        input_bgr = input_img
-
-    if isinstance(target_img, torch.Tensor):
-        target_np = target_img.numpy()
-        target_np = (target_np * 255).astype(np.uint8)
-        target_bgr = cv2.cvtColor(target_np, cv2.COLOR_GRAY2BGR)
-    else:
-        target_bgr = target_img
-
-    if isinstance(dist_img, torch.Tensor):
-        dist_np = dist_img.numpy()
-        dist_np = (dist_np * 255).astype(np.uint8)
-        dist_bgr = cv2.cvtColor(dist_np, cv2.COLOR_GRAY2BGR)
-    else:
-        dist_bgr = dist_img
-
-    combined = np.hstack((input_bgr, target_bgr, dist_bgr))
-    cv2.imshow("Input (left), Target (middle), Mask (right)", combined)
-    key = cv2.waitKey(0)
-    if key == 27:  # Exit if ESC is pressed
-        break
-
-cv2.destroyAllWindows()

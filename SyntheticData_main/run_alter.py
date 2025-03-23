@@ -143,9 +143,9 @@ class DataGenerator:
     def __init__(self, test_safe_to_desk=False):
         self.bg_transformer = BackgroundTransformer(
             background_rotation,
-            blur_kernel_range,
-            blur_intensity_range,
-            blur_probability,
+            # blur_kernel_range,
+            # blur_intensity_range,
+            # blur_probability,
             noise_level_range,
             flip_probability,
             jitter_probability,

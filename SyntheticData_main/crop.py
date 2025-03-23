@@ -1,9 +1,9 @@
 import cv2
 import os
 from progressbar import ProgressBar
-from config import OBJECTS_DIR
+from other.parsing.train_args_parser import objects_dir
 
-path = OBJECTS_DIR
+path = objects_dir
 result = path[:-1] + "_cut/"
 
 if not os.path.isdir(result):

@@ -18,7 +18,6 @@ def find_model_in_dir_or_path(dp: str):
             if file.endswith(".pt"):
                 return os.path.join(dp, file)
         raise FileNotFoundError(f"There is no model file in given directory: {dp}")
-    # ete tvac@ file-a bayc chi verjanum pt-ov error
     elif os.path.isfile(dp):
         if dp.endswith(".pt"):
             return dp
@@ -27,23 +26,25 @@ def find_model_in_dir_or_path(dp: str):
 #
 # train_results/model_name/2025-02-19_12-00-00/model_10/weights.pt
 def find_last_model_in_tree(model_trains_tree_dir):
-    res_dir = None
+    res_dir = None  # Initialize the result directory as None.
 
-    if os.path.exists(model_trains_tree_dir):
-        # model_trains_tree_dir - > train_results/model_name
-        # datetime.strptime(date, DATE_FORMAT) преобразует в обьект datetime, находим самую боьлшую дату
+    if os.path.exists(model_trains_tree_dir):  # Check if the directory exists.
+        # `model_trains_tree_dir` -> train_results/model_name
+        # `datetime.strptime(date, DATE_FORMAT)` converts a string date into a datetime object,
+        # find the largest (most recent) date.
         date_objects = [datetime.strptime(date, DATE_FORMAT)
                         for date in os.listdir(model_trains_tree_dir)
                         if len(os.listdir(os.path.join(model_trains_tree_dir, date))) != 0]
-        if len(date_objects) != 0:
-            max_num = 0
+        if len(date_objects) != 0:  # Check if there are valid dates.
+            max_num = 0  # Initialize the maximum epoch number.
             day_dir = os.path.join(model_trains_tree_dir, max(date_objects).strftime(DATE_FORMAT))
-            for name in os.listdir(day_dir):
-                st, num = name.split("_")
-                # Разделяет имя директории на две части: st и num
-                # # train_results/model_name/2025-02-19_12-00-00/"epoch_i"
+            for name in os.listdir(day_dir):  # Iterate through the subdirectories in the latest date folder.
+                st, num = name.split("_")  # Split the directory name into two parts: `st` and `num`.
+                # Example: train_results/model_name/2025-02-19_12-00-00/"epoch_i"
                 folder_path = os.path.join(day_dir, name)
                 if max_num <= int(num) and MODEL_NAME in os.listdir(folder_path):
+                    # Update `max_num` and `res_dir` if the current epoch number is larger and
+                    # `MODEL_NAME` exists in the folder.
                     max_num = int(num)
                     res_dir = folder_path
 

@@ -75,7 +75,6 @@ class MobileNetv(nn.Module):
 
         def conv_dw_block(in_channels, out_channels, stride):
             return nn.Sequential(
-                # aystegh kwargs@ potencial bias/ exp factor biasna vercnum
                 block_type(in_channels, out_channels, stride, **kwargs),
                 block_type(out_channels, out_channels, 1, **kwargs)
             )

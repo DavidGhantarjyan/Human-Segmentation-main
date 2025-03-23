@@ -138,37 +138,7 @@ class CocoDataset(Dataset):
         self.target_images = glob(os.path.join(self.target_path, "*.png"))
         self.mask_images = glob(os.path.join(self.mask_path, "*.png"))
         self.transform = transform
-    # train_coco_dataset = CocoDataset(
-    #         cocodataset_path=train_coco_data_dir,
-    #         transform=TripletTransform(
-    #             input_transform=input_transform,
-    #             target_transform=target_transform,
-    #             mask_transform=mask_transform
-    #         ))
-    #
-    # val_coco_dataset = CocoDataset(
-    #         cocodataset_path=val_coco_data_dir,
-    #         transform=TripletTransform(
-    #             input_transform=base_transform,
-    #             target_transform=base_transform,
-    #             mask_transform=base_transform
-    #         ))
 
-    # input_transform = transforms.Compose([
-    #     apply_custom_transform_input,
-    #     input_transform_synthetic
-    # ])
-    #
-    # target_transform = transforms.Compose([
-    #     apply_custom_transform_target,
-    #     base_transform,
-    # ])
-    # mask_transform = target_transform
-    # base_transform = transforms.Compose([
-    #     transforms.ToPILImage(),
-    #     transforms.Resize((160, 90)),
-    #     transforms.ToTensor(),
-    # ])
     def __len__(self):
         return len(self.input_images)
 
@@ -278,37 +248,3 @@ val_coco_dataset = CocoDataset(
         ))
 
 dataset = MixedDataset(train_coco_dataset, synthetic_dataset, scale_factor=1.5)
-#
-# for i in range(10):
-#     input_img, target_img, dist_img = synthetic_dataset[i]
-#
-#     if isinstance(input_img, torch.Tensor):
-#         unnormalize = transforms.Normalize(mean=[-1, -1, -1], std=[2, 2, 2])
-#         input_img = unnormalize(input_img)
-#         input_np = input_img.permute(1, 2, 0).numpy()
-#         input_np = (input_np * 255).astype(np.uint8)
-#         input_bgr = cv2.cvtColor(input_np, cv2.COLOR_RGB2BGR)
-#     else:
-#         input_bgr = input_img
-#
-#     if isinstance(target_img, torch.Tensor):
-#         target_np = target_img.numpy()
-#         target_np = (target_np * 255).astype(np.uint8)
-#         target_bgr = cv2.cvtColor(target_np, cv2.COLOR_GRAY2BGR)
-#     else:
-#         target_bgr = target_img
-#
-#     if isinstance(dist_img, torch.Tensor):
-#         dist_np = dist_img.numpy()
-#         dist_np = (dist_np * 255).astype(np.uint8)
-#         print(np.max(dist_np),np.min(dist_np))
-#         dist_bgr = cv2.cvtColor(dist_np, cv2.COLOR_GRAY2BGR)
-#     else:
-#         dist_bgr = dist_img
-#     combined = np.hstack((input_bgr, target_bgr, dist_bgr))
-#     cv2.imshow("Input (left), Target (middle), Mask (right)", combined)
-#     key = cv2.waitKey(0)
-#     if key == 27:  # Exit if ESC is pressed
-#         break
-#
-# cv2.destroyAllWindows()
