@@ -1,4 +1,3 @@
-import torch
 from torch.utils.data import DataLoader, Subset
 
 from other.data.datasets  import *
@@ -20,8 +19,8 @@ def get_train_val_dataloaders(train_dataset, val_dataset, batch_size, val_batch_
     train_subset = Subset(train_dataset, train_indices)
     val_indices = torch.randperm(len(val_dataset), generator=generator2)
     val_subset = Subset(val_dataset, val_indices)
-
-    train_dataloader = DataLoader(train_subset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-    val_dataloader = DataLoader(val_subset, batch_size=val_batch_size, shuffle=False, num_workers=val_num_workers)
+    train_dataloader = DataLoader(train_subset, batch_size=batch_size, shuffle=True, num_workers=num_workers,pin_memory=True)
+    # train_dataloader = DataLoader(train_subset, batch_size=batch_size, shuffle=True, num_workers=num_workers,pin_memory=True)
+    val_dataloader = DataLoader(val_subset, batch_size=val_batch_size, shuffle=False, num_workers=val_num_workers,pin_memory=True)
 
     return train_dataloader, val_dataloader, train_seed, val_seed

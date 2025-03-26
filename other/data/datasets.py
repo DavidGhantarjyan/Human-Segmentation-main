@@ -1,11 +1,8 @@
-import os
 from glob import glob
 import cv2
-import numpy as np
 import torch
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
-import matplotlib.pyplot as plt
 from other.losses_utils import DistanceCalculator
 
 # Import parameters and necessary classes/functions from other modules
@@ -13,9 +10,7 @@ from other.parsing.train_args_parser import *
 from SyntheticData_main.run import (
     BackgroundTransformer,
     DataGenerator,
-    FileManager,
-    background_dir,
-    images_per_combination,
+
 )
 
 
@@ -221,30 +216,13 @@ class MixedDataset(Dataset):
 
     def __getitem__(self, idx):
         if idx < self.coco_length:
-            return self.coco_dataset[idx]
+            with torch.profiler.record_function("## Get from CocoDataset ## "):
+                return self.coco_dataset[idx]
         else:
             synthetic_idx = idx - self.coco_length
             if synthetic_idx < self.synthetic_length:
-                return self.synthetic_dataset[synthetic_idx]
+                with torch.profiler.record_function("##  Get from SyntheticDataset ## "):
+                    return self.synthetic_dataset[synthetic_idx]
             else:
                 raise IndexError("Index out of range for MixedDataset.")
 
-
-train_coco_dataset = CocoDataset(
-        cocodataset_path=train_coco_data_dir,
-        transform=TripletTransform(
-            transform = apply_custom_transform
-        ))
-
-synthetic_dataset = SyntheticDataset(
-        length=None,
-        test_safe_to_desk=False
-    )
-
-val_coco_dataset = CocoDataset(
-        cocodataset_path=val_coco_data_dir,
-        transform=TripletTransform(
-            transform = base_transform
-        ))
-
-dataset = MixedDataset(train_coco_dataset, synthetic_dataset, scale_factor=1.5)

@@ -4,8 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from other.parsing.train_args_parser import *
 from other.losses_utils import *
-import cv2
-import matplotlib.pyplot as plt
 
 
 class BlurBoundaryLoss(nn.Module):
@@ -29,7 +27,6 @@ class BlurBoundaryLoss(nn.Module):
             outputs, targets.unsqueeze(1), reduction='none'
         )
         loss = bce_loss * masks
-        # loss -> torch.Size([b, 1, h, w])
         return loss.mean()
 
 
@@ -43,25 +40,22 @@ class BoundaryLossCalculator(nn.Module):
         self.synthetic_mask_pre_calculation_mode = synthetic_mask_pre_calculation_mode
 
     def _compute_boundary_loss_weight_map(self, outputs, targets, masks):
-        # outputs, targets, masks = outputs.to(self.device), targets.to(self.device), masks.to(self.device)
-        if self.natural_data_mask_pre_calculation_mode == 'loss' or self.synthetic_mask_pre_calculation_mode == 'loss':
-            new_masks = torch.zeros_like(masks, dtype=torch.float32, device=self.device)
-            for b in range(masks.shape[0]):
-                if not torch.any(masks[b]).item():
-                    new_masks[b] = DistanceCalculator(targets[b].unsqueeze(0)).compute_distance_matrix_on_gpu()
-                else:
-                    new_masks[b] = masks[b]
+        if self.natural_data_mask_pre_calculation_mode == 'loss' and self.synthetic_mask_pre_calculation_mode == 'loss':
+            distance_maps = DistanceCalculator(targets).compute_distance_matrix_on_gpu(use_edt=False)
+            masks = distance_maps.squeeze(1)
+        elif self.natural_data_mask_pre_calculation_mode == 'loss' or self.synthetic_mask_pre_calculation_mode == 'loss':
+            mask_any = torch.any(masks, dim=(1, 2))
+            indices = torch.nonzero(~mask_any, as_tuple=True)[0]
+            targets_to_compute = targets[indices]
+            distance_maps = (DistanceCalculator(targets_to_compute).compute_distance_matrix_on_gpu(use_edt=True))
+            masks[indices] = distance_maps.squeeze(1)
 
-            masks = new_masks
-        targets_array_binary = ImageProcessor.binarize_array(targets.unsqueeze(1).detach())
+
+        targets_array_binary = ImageProcessor.binarize_array(targets.unsqueeze(1))
         output_array_binary = ImageProcessor.binarize_array(outputs.detach())
-
-        difference_coords_s_beside_g = (output_array_binary == 1) & (targets_array_binary == 0)
-        difference_coords_g_beside_s = (targets_array_binary == 1) & (output_array_binary == 0)
-        # dist_matrix / dist_max -> normalization to (0,1) для истинности расстояний
         res = torch.zeros_like(output_array_binary, dtype=torch.int, device=self.device)
-        res[difference_coords_s_beside_g] = -1
-        res[difference_coords_g_beside_s] = +1
+        res = torch.where((output_array_binary > 0) & (targets_array_binary <= 0), -1, res)
+        res = torch.where((targets_array_binary > 0) & (output_array_binary <= 0), 1, res)
 
         return res.squeeze(1) * masks
 

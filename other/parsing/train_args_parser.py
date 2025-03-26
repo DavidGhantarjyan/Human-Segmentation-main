@@ -12,7 +12,7 @@ y_path = os.path.join(current_dir, '..', '..', 'configs', 'train.yaml')
 yaml = ruamel.yaml.YAML(typ='rt')  # Preserve YAML comments/formatting
 
 # Load YAML configuration with round-trip loader
-with open(y_path) as f:
+with open(y_path,'r', encoding='utf-8') as f:
     ydict = yaml.load(f)
 
 # ---------------------------

@@ -129,10 +129,10 @@ model:
 train:
   synthetic_mask_pre_calculation_mode: loss  # Mask handling: loss/dataloader
   natural_data_mask_saving:             # Natural data mask storage
-  natural_data_mask_pre_calculation_mode: loss  # Natural mask computation
+  natural_data_mask_pre_calculation_mode: dataloader  # Natural mask computation
   lr: -5               # Learning rate as 10^N (10^-5 = 0.00001)
   epoch: 10            # Total training epochs
-  workers: 0           # Data loading workers (0 = main thread)
+  workers: 10         # Data loading workers
   batch: 12            # Training batch size
   n_accum: 4           # Gradient accumulation steps
   alpha: 1e-4          # Loss component weight
