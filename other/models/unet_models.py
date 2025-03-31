@@ -3,6 +3,7 @@ import torch.nn as nn
 from other.models.mobile import CBG, MobileNetv, MobileNetV1Block, MobileNetV2Block
 
 
+
 class ConvBlock(nn.Module):
     def __init__(self, in_nc, out_nc, kernel_size=3, stride=1):
         super(ConvBlock, self).__init__()
@@ -30,11 +31,19 @@ class Downsample_Block(nn.Module):
 # torch.Size([3, 512, 80, 45]) + torch.Size([3, 512, 80, 45]) = torch.Size([3, 1024, 80, 45]) -> torch.Size([3, 512, 80, 45])
 # -> torch.Size([3, 512, 80, 45])
 class Upsample_Block(nn.Module):
-    def __init__(self, in_nc, out_nc, block_type=None, kernel_size=3, stride=1, skip_connect=True, **kwargs):
+    def __init__(self, in_nc, out_nc, block_type=None, kernel_size=3, stride=1, skip_connect=True, upsample_type='transpose', **kwargs):
         super(Upsample_Block, self).__init__()
         self.skip_connect = skip_connect  # Set skip_connect flag
+        self.upsample_type = upsample_type
         #  torch.Size([3, 1024, 40, 23]) -> torch.Size([3, 512, 81, 47])
-        self.up = nn.ConvTranspose2d(in_nc, out_nc, kernel_size=3, stride=2)  # Transposed conv for upsampling
+        if self.upsample_type == 'transpose':
+            # Transposed convolution for upsampling
+            self.up = nn.ConvTranspose2d(in_nc, out_nc, kernel_size=3, stride=2, padding=1, output_padding=1)
+        elif self.upsample_type == 'interpolate':
+            # Interpolation followed by convolution for upsampling
+            self.up = nn.Sequential(
+                nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
+                nn.Conv2d(in_nc, out_nc, kernel_size=3, stride=1, padding=(kernel_size - 1) // 2))
 
         if self.skip_connect:
             if block_type:
@@ -146,7 +155,7 @@ class mobilenet(nn.Module):
 
 
 class UNet_MobileNet(nn.Module):
-    def __init__(self, n_channels, num_classes, block_type):
+    def __init__(self, n_channels, num_classes, block_type,upsample_type):
         super(UNet_MobileNet, self).__init__()
         self.n_channels = n_channels
         self.num_classes = num_classes
@@ -154,10 +163,10 @@ class UNet_MobileNet(nn.Module):
         # Backbone MobileNetv1/2
         self.backbone = mobilenet(n_channels, block_type)
 
-        self.up1 = Upsample_Block(1024, 512, block_type=block_type)
-        self.up2 = Upsample_Block(512, 256, block_type=block_type)
-        self.up3 = Upsample_Block(256, 128, block_type=block_type)
-        self.up4 = Upsample_Block(128, 64, block_type=block_type,skip_connect=False)
+        self.up1 = Upsample_Block(1024, 512, block_type=block_type,upsample_type=upsample_type)
+        self.up2 = Upsample_Block(512, 256, block_type=block_type,upsample_type=upsample_type)
+        self.up3 = Upsample_Block(256, 128, block_type=block_type,upsample_type=upsample_type)
+        self.up4 = Upsample_Block(128, 64, block_type=block_type,skip_connect=False,upsample_type=upsample_type)
 
         self.out = nn.Conv2d(64, num_classes, kernel_size=1)
 

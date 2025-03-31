@@ -9,16 +9,17 @@ class CBG(nn.Module):
         self.padding = (kernel_size - 1) // 2  # Reflective padding to preserve dimensions after convolution
         self.conv = nn.Conv2d(
             in_nc, out_nc, kernel_size=kernel_size, stride=stride,
-            padding=0, groups=groups, bias=bias
+            padding=self.padding, padding_mode='reflect' if stride == 1 else 'zeros',
+            groups=groups, bias=bias
         )
-        self.bn = nn.BatchNorm2d(out_nc)  # Batch normalization
+        self.bn = nn.BatchNorm2d(out_nc)
         self.relu6 = nn.ReLU6(inplace=True)
 
     def forward(self, x):
-        if self.stride == 1:
-            x = F.pad(x, (self.padding, self.padding, self.padding, self.padding), mode='reflect')  # Reflect padding
-        else:
-            x = F.pad(x, (self.padding, self.padding, self.padding, self.padding), mode='constant', value=0)
+        # if self.stride == 1:
+        #     x = F.pad(x, (self.padding, self.padding, self.padding, self.padding), mode='reflect')  # Reflect padding
+        # else:
+        #     x = F.pad(x, (self.padding, self.padding, self.padding, self.padding), mode='constant', value=0)
         out = self.conv(x)  # Convolution operation
         out = self.bn(out)  # Normalize activations
         out = self.relu6(out)  # Apply LeakyReLU activation

@@ -1,155 +1,155 @@
-# train.yaml
+# ======================
 # Synthetic Data Generation and Training Configuration
-
-# ======================
-# Data Configuration
 # ======================
 
+# Data-related configurations, including paths, organization, augmentation, and output formatting.
 data:
   # ----------------------
   # Directory Paths
   # ----------------------
   directories:
-    train_coco_data_dir: \CocoData\train_coco_dataset  # Path to COCO-format training dataset
-    val_coco_data_dir: \CocoData\val_coco_dataset      # Path to COCO-format validation dataset
-    test_safe_to_desk: True  # Persist generated data to disk (True) or keep in memory (False)
-    result_dir: Result\      # Output directory for synthetic data generation results
-    background_dir: Bg\      # Directory containing background images
-    objects_dir: Obj\        # Directory containing foreground objects
-
+    train_coco_data_dir: \CocoData\train_coco_dataset  # Path to the COCO-format training dataset.
+    val_coco_data_dir: \CocoData\val_coco_dataset      # Path to the COCO-format validation dataset.
+    test_safe_to_desk: true  # If True, generated synthetic data is saved to disk; otherwise, kept in memory.
+    result_dir: Result\      # Directory where synthetic data generation results are stored.
+    background_dir: Bg\      # Directory containing background images.
+    objects_dir: Obj\        # Directory containing foreground objects.
   # ----------------------
   # Output Organization
   # ----------------------
   output_settings:
-    merge_outputs: False   # Combine all generated data in single directory
-    package_by_background: False  # Organize outputs by background source
+    merge_outputs: false   # If True, all generated images are stored in a single directory.
+    package_by_background: false  # If True, images are organized based on background sources.
 
   # ----------------------
   # Object Placement
   # ----------------------
   object_placement_settings:
-    allow_out_of_bounds: True  # Allow partial object placement outside background
-    out_of_bounds_range: [0.1, 0.2]  # Allowed out-of-bounds area ratio (0-1)
-    placement_distribution: gaussian  # Object distribution: gaussian/uniform
+    allow_out_of_bounds: true  # If True, objects can be placed partially outside the image boundaries.
+    out_of_bounds_range: [0.1, 0.2]  # Defines how much of the object can be outside (as a ratio of the object size).
+    placement_distribution: gaussian  # Distribution method for object placement (gaussian/uniform).
 
   # ----------------------
   # Image Generation
   # ----------------------
   image_generation_settings:
-    images_per_combination: 1  # Images per background-object combination
-    objects_per_image_range: [1, 2]  # Min-max objects per image
-    object_scale_range: [0.9, 1.1]   # Object scaling factors (relative)
+    images_per_combination: 1  # Number of images generated per background-object combination.
+    objects_per_image_range: [1, 2]  # Defines the min-max number of objects per image.
+    object_scale_range: [0.9, 1.1]   # Scaling factor range for resizing objects.
+
 
   # ----------------------
   # Background Processing
   # ----------------------
   background_blur_settings:
-    bg_blur_type: GaussianBlur  # Blur type: GaussianBlur/bilateralFilter
-    bg_blur_probability: 0.5    # Chance to apply blur to background
-    bg_blur_kernel_range: [5, 9]  # Kernel size range for blur effect
+    bg_blur_type: GaussianBlur  # Type of blur applied to the background (GaussianBlur/bilateralFilter).
+    bg_blur_probability: 0.5    # Probability of applying blur to the background.
+    bg_blur_kernel_range: [5, 9]  # Range of kernel sizes used for the blur effect.
 
-  # ----------------------
+ # ----------------------
   # Alpha Channel Processing
   # ----------------------
   alpha_blur_settings:
-    alpha_blur_type: GaussianBlur  # Blur type for object alpha channels
-    alpha_blur_kernel_range: [3, 7]  # Kernel size range for alpha blur
+    alpha_blur_type: GaussianBlur  # Type of blur applied to object alpha channels.
+    alpha_blur_kernel_range: [3, 7]  # Range of kernel sizes for alpha channel blurring.
 
   # ----------------------
   # Image Resizing
   # ----------------------
   resize_setting:
-    resize_width: 320   # Target width for resizing
-    resize_height: 180  # Target height for resizing
+    resize_width: 320   # Target width for resizing the generated images.
+    resize_height: 180  # Target height for resizing the generated images.
 
   # ----------------------
   # Noise Augmentation
   # ----------------------
   noise_settings:
-    noise_type: gaussian       # Noise type: gaussian/uniform
-    noise_level_range: [0.05, 0.1]  # Noise intensity range
+    noise_type: gaussian       # Type of noise added (gaussian/uniform).
+    noise_level_range: [0.05, 0.1]  # Range of noise intensity.
 
   # ----------------------
   # Geometric Augmentations
   # ----------------------
   transformations:
-    flip_probability: 0.5  # Horizontal flip probability
+    flip_probability: 0.5  # Probability of applying a horizontal flip to images.
 
   # ----------------------
   # Output Specifications
   # ----------------------
   output_format:
-    output_format: segmentation  # Output type: segmentation/classification
+    output_format: segmentation  # Defines output format: segmentation or classification.
 
   # ----------------------
   # Advanced Settings
   # ----------------------
   miscellaneous:
-    depth: True  # Enable depth-aware object placement
+    depth: true  # If True, enables depth-aware object placement.
 
   # ----------------------
   # Rotation Augmentations
   # ----------------------
   rotation_settings:
-    foreground_rotation: False       # Rotate foreground objects
-    background_rotation: True        # Rotate background images
-    background_rotation_angle: [-30, 30]  # Background rotation range (degrees)
-    foreground_rotation_angle: [-30, 30]  # Foreground rotation range (degrees)
+    foreground_rotation: false       # If True, rotates foreground objects randomly.
+    background_rotation: true        # If True, rotates background images randomly.
+    background_rotation_angle: [-30, 30]  # Defines the range of background rotation (in degrees).
+    foreground_rotation_angle: [-30, 30]  # Defines the range of foreground object rotation (in degrees).
 
   # ----------------------
   # Color Augmentations
   # ----------------------
   color_jitter_settings:
-    jitter_probability: 0.5       # Chance to apply color jitter
-    brightness_range: [0.8, 1.2]  # Brightness adjustment range
-    contrast_range: [0.8, 1.2]    # Contrast adjustment range
-    saturation_range: [0.8, 1.2]  # Saturation adjustment range
-    hue_range: [-0.1, 0.1]        # Hue adjustment range
+    jitter_probability: 0.5       # Probability of applying color jittering.
+    brightness_range: [0.8, 1.2]  # Adjustment range for brightness.
+    contrast_range: [0.8, 1.2]    # Adjustment range for contrast.
+    saturation_range: [0.8, 1.2]  # Adjustment range for saturation.
+    hue_range: [-0.1, 0.1]        # Adjustment range for hue.
 
   # ----------------------
   # Dataset Scaling
   # ----------------------
   dataset_settings:
-    scale_factor: 1.5  # Image scaling factor for preprocessing
+    scale_factor: 1.5  # Scaling factor applied during dataset preprocessing.
 
 # ======================
 # Model Configuration
 # ======================
 model:
-  id: 1                  # Model ID from available options
-  name:                  # Model name override (optional)
-  weights:               # Path to pretrained weights (optional)
-  create_new_model: False  # Initialize new model (True) or load existing (False)
-  saves_count: 0         # Number of checkpoints to save (0 = save every epoch)
-  directory: train_results  # Model output directory
+  id: 1                  # Unique identifier for the model.
+  name:                  # Optional: Custom model name.
+  weights:               # Optional: Path to pretrained weights.
+  create_new_model: false  # If True, initializes a new model; otherwise, loads an existing one.
+  saves_count: 0         # Number of model checkpoints to save (0 = save every epoch).
+  directory: train_results  # Directory where model training results are stored.
+
 
 # ======================
 # Training Parameters
 # ======================
 train:
-  synthetic_mask_pre_calculation_mode: loss  # Mask handling: loss/dataloader
-  natural_data_mask_saving:             # Natural data mask storage
-  natural_data_mask_pre_calculation_mode: dataloader  # Natural mask computation
-  lr: -5               # Learning rate as 10^N (10^-5 = 0.00001)
-  epoch: 10            # Total training epochs
-  workers: 10         # Data loading workers
-  batch: 12            # Training batch size
-  n_accum: 4           # Gradient accumulation steps
-  alpha: 1e-4          # Loss component weight
-  beta: 1.0            # Loss component weight
-  gamma: 1.0           # Loss component weight
+  synthetic_mask_pre_calculation_mode: dataloader  # Defines how masks are handled: loss-based or via dataloader.
+  natural_data_mask_saving:             # Placeholder for natural data mask storage configuration.
+  natural_data_mask_pre_calculation_mode: dataloader  # Defines mask computation mode for natural images.
+  lr: -3               # Learning rate expressed as 10^N (e.g., 10^-3 = 0.001).
+  epoch: 100            # Total number of training epochs.
+  workers: 12         # Number of worker threads used for data loading.
+  batch: 16            # Batch size for training.
+  n_accum: 6           # Number of steps for gradient accumulation.
+  alpha: 0.0001        # Weight for loss function component.
+  beta: 5.0           # Weight for loss function component.
+  gamma: 5.0           # Weight for loss function component.
 
 # ======================
 # Validation Settings
 # ======================
 val:
-  mini_batch: 8        # Validation batch size
-  workers: 8           # Validation data workers
-  every: 1             # Validate every N epochs
+  mini_batch: 8        # Batch size for validation.
+  workers: 8           # Number of worker threads for validation.
+  every: 1             # Number of epochs between validation runs.
 
 # ======================
 # Logging & Visualization
 # ======================
 verbose:
-  print: 2             # Verbosity level (0-2)
-  plot: true           # Enable training progress plots
+  print: 2             # Verbosity level (0 = silent, 1 = minimal, 2 = detailed output).
+  plot: true           # If True, enables visualization of training progress.
+  threshold: 0.5       # Threshold value used in logging computations.

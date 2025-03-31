@@ -8,9 +8,11 @@ mobilenet_block_names = {
 
 unet = lambda: UNet(n_channels=3, num_classes=1)
 unet_mobilenetv1 = lambda: UNet_MobileNet(n_channels=3, num_classes=1,
-                                          block_type=mobilenet_block_names['MobileNetV1Block'])
+                                          block_type=mobilenet_block_names['MobileNetV1Block'],
+                                          upsample_type="transpose")
 unet_mobilenetv2 = lambda: UNet_MobileNet(n_channels=3, num_classes=1,
-                                          block_type=mobilenet_block_names['MobileNetV2Block'])
+                                          block_type=mobilenet_block_names['MobileNetV2Block'],
+                                          upsample_type="transpose")
 
 MODELS = {
     "UNet": unet,

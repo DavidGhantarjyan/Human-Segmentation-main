@@ -171,6 +171,7 @@ val_batch_size = is_range(ydict['val']['mini_batch'], 1, 2 ** 15, int)
 # ---------------------------
 plot = is_type_of(ydict['verbose']['plot'], bool)
 print_level = is_range(ydict['verbose']['print'], 0, 2, int)
+threshold = is_range(ydict['verbose']['threshold'], 0, 1, float)
 # n_examples = is_range(ydict['verbose']['n_examples'], 0, 1000, int)
 #
 
