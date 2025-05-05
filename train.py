@@ -1,17 +1,18 @@
+from msilib import Binary
+
 import torch
-import os
-import random
 import time
 import shutil
 import pandas as pd
-from torch.nn.functional import cross_entropy
 from tqdm import tqdm
 import torch.nn.functional as F
+from torch.utils.data import ConcatDataset
+
 # Data processing and dataset creation
 from other.data.processing import get_train_val_dataloaders
 from other.data.datasets import (CocoDataset, SyntheticDataset, MixedDataset, TripletTransform,
-                                   base_transform, apply_custom_transform, input_to_tensor_transform,
-                                   val_base_transform, val_input_to_tensor_transform)
+                                 base_transform, apply_custom_transform, input_to_tensor_transform,
+                                 val_base_transform, val_input_to_tensor_transform)
 
 # Model selection and utility functions for counting parameters and estimating VRAM usage
 from other.models.models_handler import MODELS, count_parameters, estimate_vram_usage
@@ -31,6 +32,8 @@ from torch.profiler import profile, record_function, ProfilerActivity
 
 # Automatic mixed precision (AMP) for FP16 training
 from torch.amp import autocast, GradScaler
+from segmentation_models_pytorch.losses import DiceLoss , FocalLoss
+from monai.losses import GeneralizedDiceLoss
 
 if __name__ == '__main__':
     # Load training arguments from parser. This includes all hyperparameters and directory paths.
@@ -50,6 +53,14 @@ if __name__ == '__main__':
             input_to_tensor_transform=input_to_tensor_transform  # Converts inputs to PyTorch tensors.
         )
     )
+    train_mapillary_dataset = CocoDataset(
+        cocodataset_path=train_mapillary_data_dir,
+        transform=TripletTransform(
+            transform=apply_custom_transform,
+            base_transform=base_transform,
+            input_to_tensor_transform=input_to_tensor_transform
+        )
+    )
 
     # Create a synthetic dataset (for example, generated images or data augmentation).
     synthetic_dataset = SyntheticDataset(
@@ -66,9 +77,11 @@ if __name__ == '__main__':
             input_to_tensor_transform=val_input_to_tensor_transform  # Convert validation inputs to tensors.
         )
     )
+    combined_dataset = ConcatDataset([train_coco_dataset, train_mapillary_dataset])
 
     # Combine the training COCO dataset and synthetic dataset with a scale factor to form a mixed dataset.
-    mixed_dataset = MixedDataset(train_coco_dataset, synthetic_dataset, scale_factor=1.5)
+    mixed_dataset = MixedDataset(combined_dataset, synthetic_dataset, scale_factor=scale_factor)
+    print(len(mixed_dataset))
 
     # -------------------------------
     # Model Setup
@@ -80,9 +93,14 @@ if __name__ == '__main__':
 
     # Optionally compile the model (PyTorch 2.0+) for performance improvements.
     # model = torch.compile(model)
-
     # Create an optimizer (Adam) with the learning rate specified by the configuration.
+    # optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    scheduler = None
+    if scheduler_available:
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, mode='min', factor=0.1, patience=8, threshold=0.001, min_lr=1e-6,
+        )
 
     # Determine the directory structure for saving training results. The model's name is used for folder organization.
     model_trains_tree_dir = os.path.join(train_res_dir, model_name)
@@ -128,7 +146,18 @@ if __name__ == '__main__':
         # Load saved model and optimizer state.
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        optimizer.lr = lr  # Reset the learning rate if needed.
+        if enable_lr_reset:
+            for param_group in optimizer.param_groups:
+                old_param_lr = param_group['lr']
+                param_group['lr'] = lr
+                print(f"Learning rate {old_param_lr} has been reset to: {param_group['lr']}")
+        for idx, param_group in enumerate(optimizer.param_groups):
+            print(
+                f"Parameter group {idx} - Current learning rate: {param_group['lr']}")
+        if 'scheduler_state_dict' in checkpoint and scheduler_available:
+            scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+            print("Scheduler state has been successfully loaded.")
+
         # Set the current epoch to resume training.
         curr_run_start_global_epoch = checkpoint['epoch'] + 1
 
@@ -157,15 +186,17 @@ if __name__ == '__main__':
             val_batch_size=val_batch_size, num_workers=num_workers, val_num_workers=val_num_workers)
         loss_history_table = pd.DataFrame(columns=['global_epoch', 'train_loss', 'val_loss'])
         accuracy_history_table = pd.DataFrame(columns=['global_epoch', 'train_accuracy', 'val_accuracy',
-                                                       'train_ones_accuracy', 'val_ones_accuracy'])
+                                                       'train_precision', 'val_precision', 'train_recall', 'val_recall',
+                                                       'train_f1', 'val_f1', 'train_iou', 'val_iou',
+                                                       ])
         loss_history_table.set_index('global_epoch', inplace=True)
         accuracy_history_table.set_index('global_epoch', inplace=True)
 
         print(f"Checkpoints(for this run): {save_frames}")
 
-    # -------------------------------
-    # Optional: Setup Profiler (commented out)
-    # -------------------------------
+    # # -------------------------------
+    # # Optional: Setup Profiler (commented out)
+    # # -------------------------------
     # profiler_iterations = 30
     # train_profiler = profile(
     #     activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
@@ -183,7 +214,6 @@ if __name__ == '__main__':
     #     profile_memory=True,
     # )
 
-
     # Create a GradScaler for automatic mixed precision (AMP) training on CUDA.
     scaler = GradScaler(device='cuda')
 
@@ -191,18 +221,27 @@ if __name__ == '__main__':
     # Training Loop
     # -------------------------------
     for epoch in range(1, do_epoches + 1):
+        # global_epoch = curr_run_start_global_epoch + epoch
+
         global_epoch = curr_run_start_global_epoch + epoch - 1
+
+        # w_bce = float(1 - ((global_epoch - 1) - 75) / 100)
+        # w_boundary = float(global_epoch - 75)
+        w_bce = torch.tensor(1 - ((global_epoch - 1) - 75) / 100, dtype=torch.float16, device=device)
+        w_boundary = torch.tensor((global_epoch - 75), dtype=torch.float16, device=device)
         print(f"\n{'=' * 100}\n")
 
         # Set model to training mode.
         model.train()
         # Initialize running metrics as scalar tensors on the selected device.
-        running_loss = torch.scalar_tensor(0, device=device)
-        running_correct_count = torch.scalar_tensor(0, device=device)
-        running_whole_count = torch.scalar_tensor(0, device=device)
-        running_ones_correct_count = torch.scalar_tensor(0, device=device)
-        running_ones_total = torch.scalar_tensor(0, device=device)
+        running_loss = torch.scalar_tensor(0.0, device=device)
+        running_correct_count = torch.scalar_tensor(0.0, device=device)
+        running_whole_count = torch.scalar_tensor(0.0, device=device)
+        running_tp = torch.scalar_tensor(0.0, device=device)
+        running_fp = torch.scalar_tensor(0.0, device=device)
+        running_fn = torch.scalar_tensor(0.0, device=device)
 
+        # with train_profiler:
         # Iterate over training batches.
         for batch_idx, (batch_inputs, batch_targets, mask) in enumerate(
                 tqdm(train_dataloader, desc=f"Training epoch: {global_epoch} ({epoch}\\{do_epoches}) | ")):
@@ -217,19 +256,42 @@ if __name__ == '__main__':
             # -------------------------------\n
             # Forward Pass & Loss Computation\n
             # -------------------------------
-            with autocast(device_type='cuda'):
+            with (((autocast(device_type='cuda')))):
                 with record_function("## GPU Forward Pass ##"):
                     out = model(batch_inputs)
                     # Ensure the output tensor is contiguous in memory for further processing.
+                    # Ensure the output tensor is contiguous in memory for further processing.
                     out = out.contiguous(memory_format=torch.contiguous_format)
-                    # Calculate the composite loss from three components:
+                    # Calculate the comp    osite loss from three components:
                     #   1. Boundary Loss (weighted by alpha)
                     #   2. Blur Boundary Loss (weighted by beta)
-                    #   3. Binary Cross-Entropy Loss (weighted by gamma)
-                    loss = (alpha * BoundaryLossCalculator(device=device)(out, batch_targets, mask).mean() +
-                            beta * BlurBoundaryLoss()(out, batch_targets) +
-                            gamma * F.binary_cross_entropy_with_logits(out, batch_targets.unsqueeze(1),
-                                                                       reduction='mean'))
+                    #   3. Binary Cross-Entropy
+                    #   Loss (weighted by gamma)
+
+                    with record_function("## Loss Calculation ##"):
+                        # loss = (gamma * F.binary_cross_entropy_with_logits(out, batch_targets.unsqueeze(1),
+                        #                                                    reduction='mean') * w_bce) + (alpha * BoundaryLossCalculator(device=device)(out, batch_targets, mask).mean() * w_boundary)
+
+                        loss =(
+                                # alpha * BoundaryLossCalculator(device=device)(out, batch_targets, mask).mean() +
+                                # beta * BlurBoundaryLoss()(out, batch_targets) +
+                                # gamma * F.binary_cross_entropy_with_logits(out, batch_targets.unsqueeze(1),
+                                #                                            reduction='mean')) +
+                                # delta * DiceLoss(mode='binary', log_loss=False)(F.sigmoid(out), batch_targets)
+                                # eta * FocalLoss(mode='binary',alpha=0.75, gamma=1.5)(F.sigmoid(out), batch_targets)
+                                sigma * GeneralizedDiceLoss(sigmoid=True)(out, batch_targets.unsqueeze(1))
+                        )
+
+                        # print('BoundaryLossCalculator: ',alpha * BoundaryLossCalculator(device=device)(out, batch_targets, mask).mean())
+                        # print('BlurBoundaryLoss: ',beta * BlurBoundaryLoss()(out, batch_targets))
+                        # print('BCE: ',gamma * F.binary_cross_entropy_with_logits(out, batch_targets.unsqueeze(1),
+                        #                                              reduction='mean'))
+                        # print('Dice_loss: ', delta * DiceLoss(mode='binary')(F.sigmoid(out), batch_targets))
+                        # print('Focal_loss: ', eta * FocalLoss(mode='binary',alpha=0.75, gamma=1.5)(F.sigmoid(out), batch_targets))
+                        # print('BCE: ', gamma * F.binary_cross_entropy_with_logits(out, batch_targets.unsqueeze(1),
+                        #                                                    reduction='mean') * w_bce)
+                        # print('BoundaryLossCalculator: ',alpha * BoundaryLossCalculator(device=device)(out, batch_targets, mask).mean() * w_boundary)
+                        print('Gde:', sigma * GeneralizedDiceLoss(sigmoid=True)(out, batch_targets.unsqueeze(1)))
                     # Normalize loss by the number of accumulation steps.
                     loss = loss / accumulation_steps
 
@@ -239,21 +301,17 @@ if __name__ == '__main__':
                     batch_samples_count = mask.size(0)
                     running_loss += loss.detach() * batch_samples_count * accumulation_steps
                     running_whole_count += batch_samples_count
-
                     # Binarize the output using a predefined threshold.
-                    binary_out = ImageProcessor.binarize_array(out.detach(), threshold=threshold)
+                    binary_out = ImageProcessor.binarize_array(torch.sigmoid(out).detach(), threshold=threshold)
                     binary_target = batch_targets.unsqueeze(1).detach()
 
-                    # Overall accuracy calculation.
                     pred_correct = ((binary_out == binary_target)).int()
                     running_correct_count += torch.sum(
                         pred_correct).detach() * batch_samples_count / pred_correct.numel()
 
-                    # Accuracy for positive class (ones) calculation.
-                    ones_mask = (binary_target == 1)
-                    ones_correct = (binary_out[ones_mask] == binary_target[ones_mask]).int().sum()
-                    running_ones_correct_count += ones_correct.detach()
-                    running_ones_total += ones_mask.sum()
+                    running_tp += (((binary_out == 1) & (binary_target == 1)).sum()).detach()
+                    running_fp += (((binary_out == 1) & (binary_target == 0)).sum()).detach()
+                    running_fn += (((binary_out == 0) & (binary_target == 1)).sum()).detach()
 
             # -------------------------------\n
             # Backward Pass & Optimization\n
@@ -270,19 +328,22 @@ if __name__ == '__main__':
                         # Detach output and loss to prevent memory leaks.
                         out = out.detach()
                         loss = loss.detach()
-                    # Uncomment the following lines for profiling details:
-                    # train_profiler.step()
-                    # print("TOP-10 time-consuming operations CUDA:", train_profiler.key_averages().table(sort_by='cuda_time_total', row_limit=10))
-                    # print("\nTOP-10 time-consuming operations CPU:", train_profiler.key_averages().table(sort_by='cpu_time_total', row_limit=10))
-
+            # Uncomment the following lines for profiling details:
+            # train_profiler.step()
+            # print("TOP-10 time-consuming operations CUDA:", train_profiler.key_averages().table(sort_by='cuda_time_total', row_limit=10))
+            # print("\nTOP-10 time-consuming operations CPU:", train_profiler.key_averages().table(sort_by='cpu_time_total', row_limit=10))
         # -------------------------------\n
         # End of Training Epoch: Calculate and Log Metrics\n
         # -------------------------------
         with torch.no_grad():
             train_loss = (running_loss / running_whole_count).item()
             train_accuracy = (running_correct_count / running_whole_count).item()
-            train_ones_accuracy = (
-                        running_ones_correct_count / running_ones_total).item() if running_ones_total > 0 else 0
+            train_precision = (running_tp / (running_tp + running_fp)).item() if (running_tp + running_fp) > 0 else 0
+            train_recall = (running_tp / (running_tp + running_fn)).item() if (running_tp + running_fn) > 0 else 0
+            train_f1 = (2 * train_precision * train_recall) / (train_precision + train_recall) if (
+                    train_precision + train_recall) else 0
+            train_iou = (running_tp / (running_tp + running_fp + running_fn)).item() if (
+                                                                                                running_tp + running_fp + running_fn) > 0 else 0
 
             # Prepare a dictionary to store training metrics for logging.
             row_loss_values = {
@@ -292,12 +353,16 @@ if __name__ == '__main__':
             row_acc_values = {
                 'global_epoch': global_epoch,
                 'train_accuracy': train_accuracy,
-                'train_ones_accuracy': train_ones_accuracy
+                'train_precision': train_precision,
+                'train_recall': train_recall,
+                'train_f1': train_f1,
+                'train_iou': train_iou,
             }
             if print_level > 0:
                 time.sleep(0.25)
                 print(
-                    f"Training | loss: {train_loss:.4f} | overall accuracy: {train_accuracy:.4f} | ones accuracy: {train_ones_accuracy:.4f}")
+                    f"Training | loss: {train_loss:.4f} | train_accuracy: {train_accuracy:.4f} | train_precision: {train_precision:.4f} |"
+                    f"train_recall: {train_recall:.4f} | train_f1: {train_f1:.4f} | train_iou: {train_iou:.4f}")
                 time.sleep(0.25)
 
             # -------------------------------\n
@@ -306,16 +371,17 @@ if __name__ == '__main__':
             val_loss, val_acc = None, None
             if val_every != 0 and epoch % val_every == 0:
                 model.eval()
-                val_running_loss = torch.scalar_tensor(0, device=device)
-                val_correct_count = torch.scalar_tensor(0, device=device)
-                val_whole_count = torch.scalar_tensor(0, device=device)
-                val_ones_correct_count = torch.scalar_tensor(0, device=device)
-                val_ones_total = torch.scalar_tensor(0, device=device)
+                val_running_loss = torch.scalar_tensor(0.0, device=device)
+                val_correct_count = torch.scalar_tensor(0.0, device=device)
+                val_whole_count = torch.scalar_tensor(0.0, device=device)
+                val_running_tp = torch.scalar_tensor(0.0, device=device)
+                val_running_fp = torch.scalar_tensor(0.0, device=device)
+                val_running_fn = torch.scalar_tensor(0.0, device=device)
                 print()
                 time.sleep(0.25)
                 # Iterate over validation batches.
                 for (batch_inputs, batch_targets, mask) in tqdm(val_dataloader,
-                                                                  desc=f"Calculating validation scores: "):
+                                                                desc=f"Calculating validation scores: "):
                     batch_inputs = batch_inputs.to(device, non_blocking=True, memory_format=torch.channels_last)
                     batch_targets = batch_targets.to(device, non_blocking=True)
                     mask = mask.to(device, non_blocking=True)
@@ -323,32 +389,61 @@ if __name__ == '__main__':
                     with autocast(device_type='cuda'):
                         out = model(batch_inputs)
                         out = out.contiguous(memory_format=torch.contiguous_format)
-                        loss = (alpha * BoundaryLossCalculator(device=device)(out, batch_targets, mask).mean() +
-                                beta * BlurBoundaryLoss()(out, batch_targets) +
-                                gamma * F.binary_cross_entropy_with_logits(out, batch_targets.unsqueeze(1),
-                                                                           reduction='mean'))
+                        loss = (
+                                # alpha * BoundaryLossCalculator(device=device)(out, batch_targets, mask).mean() +
+                                # beta * BlurBoundaryLoss()(out, batch_targets) +
+                                # gamma * F.binary_cross_entropy_with_logits(out, batch_targets.unsqueeze(1),
+                                #                                            reduction='mean') +
+                                # delta * DiceLoss(mode='binary')(F.sigmoid(out), batch_targets)
+                                # eta * FocalLoss(mode='binary',alpha=0.75, gamma=1.5)(F.sigmoid(out), batch_targets)
+                                sigma * GeneralizedDiceLoss(sigmoid=True)(out, batch_targets.unsqueeze(1))
+                        )
+                        # loss = (gamma * F.binary_cross_entropy_with_logits(out, batch_targets.unsqueeze(1),
+                        #                                                    reduction='mean') * w_bce) + (
+                        #                    alpha * BoundaryLossCalculator(device=device)(out, batch_targets,
+                        #                                                                  mask).mean() * w_boundary)
+
+                        # loss = (
+                        #         alpha * BoundaryLossCalculator(device=device)(out, batch_targets, mask).mean() +
+                        #         # beta * BlurBoundaryLoss()(out, batch_targets) +
+                        #         gamma * F.binary_cross_entropy_with_logits(out, batch_targets.unsqueeze(1),
+                        #                                                    reduction='mean'))
                     val_running_loss += loss.detach() * val_samples_count
                     val_whole_count += val_samples_count
 
-                    binary_out = ImageProcessor.binarize_array(out.detach(), threshold=threshold)
+                    binary_out = ImageProcessor.binarize_array(torch.sigmoid(out).detach(), threshold=threshold)
                     binary_target = batch_targets.unsqueeze(1).detach()
                     pred_correct = (binary_out == binary_target).int()
                     val_correct_count += torch.sum(pred_correct).detach() * val_samples_count / pred_correct.numel()
 
-                    ones_mask = (binary_target == 1)
-                    ones_correct = (binary_out[ones_mask] == binary_target[ones_mask]).int().sum()
-                    val_ones_correct_count += ones_correct.detach()
-                    val_ones_total += ones_mask.sum()
+                    val_running_tp += (((binary_out == 1) & (binary_target == 1)).sum()).detach()
+                    val_running_fp += (((binary_out == 1) & (binary_target == 0)).sum()).detach()
+                    val_running_fn += (((binary_out == 0) & (binary_target == 1)).sum()).detach()
 
                 # Calculate validation loss and accuracy.
                 val_loss = (val_running_loss / val_whole_count).item()
-                val_acc = (val_correct_count / val_whole_count).item()
-                val_ones_accuracy = (val_ones_correct_count / val_ones_total).item() if val_ones_total > 0 else 0
+                if scheduler:
+                    scheduler.step(val_loss)
+                for idx, param_group in enumerate(optimizer.param_groups):
+                    print(f"Parameter Group {idx}: Updated learning rate by scheduler = {param_group['lr']}")
+
+                val_accuracy = (val_correct_count / val_whole_count).item()
+                val_precision = (val_running_tp / (val_running_fp + val_running_tp)).item() if (
+                                                                                                       val_running_fp + val_running_tp) > 0 else 0
+                val_recall = (val_running_tp / (val_running_tp + val_running_fn)).item() if (
+                                                                                                    val_running_tp + val_running_fn) > 0 else 0
+                val_f1 = (2 * val_precision * val_recall) / (val_precision + val_recall) if (
+                                                                                                    val_precision + val_recall) > 0 else 0
+                val_iou = (val_running_tp / (val_running_tp + val_running_fp + val_running_fn)).item() if (
+                                                                                                                  val_running_tp + val_running_fp + val_running_fn) > 0 else 0
 
                 # Append validation metrics to the logging dictionaries.
                 row_loss_values['val_loss'] = val_loss if val_loss is not None else float('nan')
-                row_acc_values['val_accuracy'] = val_acc if val_acc is not None else float('nan')
-                row_acc_values['val_ones_accuracy'] = val_ones_accuracy if val_ones_accuracy is not None else float('nan')
+                row_acc_values['val_accuracy'] = val_accuracy if val_accuracy is not None else float('nan')
+                row_acc_values['val_precision'] = val_precision if val_precision is not None else float('nan')
+                row_acc_values['val_recall'] = val_recall if val_recall is not None else float('nan')
+                row_acc_values['val_f1'] = val_f1 if val_f1 is not None else float('nan')
+                row_acc_values['val_iou'] = val_iou if val_iou is not None else float('nan')
 
                 # Log the metrics for the current global epoch.
                 loss_history_table.loc[global_epoch] = row_loss_values
@@ -390,14 +485,17 @@ if __name__ == '__main__':
             # -------------------------------\n
             # Save Current Model Checkpoint\n
             # -------------------------------
-            torch.save({
+            checkpoint = {
                 'train_seed': train_seed,
                 'validation_seed': validation_seed,
                 'epoch': global_epoch,
                 'model_state_dict': model.state_dict(),
                 'optimizer': type(optimizer).__name__,
                 'optimizer_state_dict': optimizer.state_dict()
-            }, model_path)
+            }
+            if scheduler:
+                checkpoint['scheduler_state_dict'] = scheduler.state_dict()
+            torch.save(checkpoint, model_path)
             print(f"\nModel saved (global epoch: {global_epoch}, checkpoint: {epoch})")
 
             # Update last weights path for the next iteration.

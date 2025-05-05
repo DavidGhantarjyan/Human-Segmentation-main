@@ -1,11 +1,26 @@
 import cv2
-import numpy as np
-
 from other.parsing.train_args_parser import *
 import random
 
 
 # Import configuration parameters from train_args_parser, e.g. images_per_combination, result_dir, etc.
+def list_subfolders(path):
+    folders = [f for f in os.listdir(path) if os.path.isdir(os.path.join(path, f))]
+    if not folders:
+        raise ValueError(f"No subfolders in {path}")
+    return folders
+
+def list_files(path, exts):
+    files = [f for f in os.listdir(path)
+             if os.path.isfile(os.path.join(path, f))
+             and f.lower().endswith(exts)]
+    if not files:
+        raise ValueError(f"No files with extensions {exts} in {path}")
+    return files
+
+def pick_random_path(path, exts):
+    files = list_files(path, exts)
+    return os.path.join(path, random.choice(files))
 
 ###############################################################################
 # FileManager Class
@@ -46,19 +61,27 @@ class FileManager:
         ep_dir = os.path.join(result_dir, ep_dir) + os.sep
         return ep_dir
 
+    # @staticmethod
+    # def get_objects(objects_dir):
+    #     """
+    #             Loads all object images from the specified objects directory.
+    #
+    #             :return: List of object images loaded via cv2.imread with unchanged flags (to preserve alpha channel).
+    #     """
+    #     obj_images = []
+    #     for name in os.listdir(objects_dir):
+    #         path = os.path.join(objects_dir, name)
+    #         # Use cv2.IMREAD_UNCHANGED (-1) to load image along with alpha channel if present.
+    #         obj_images.append(cv2.imread(path, -1))
+    #     return obj_images
     @staticmethod
-    def get_objects():
+    def get_object_paths(objects_dir):
         """
-                Loads all object images from the specified objects directory.
+        Collects paths to all object images in the specified directory.
 
-                :return: List of object images loaded via cv2.imread with unchanged flags (to preserve alpha channel).
+        :return: List of absolute paths to object images.
         """
-        obj_images = []
-        for name in os.listdir(objects_dir):
-            path = os.path.join(objects_dir, name)
-            # Use cv2.IMREAD_UNCHANGED (-1) to load image along with alpha channel if present.
-            obj_images.append(cv2.imread(path, -1))
-        return obj_images
+        return [os.path.join(objects_dir, name) for name in os.listdir(objects_dir)]
 
     @staticmethod
     def save_as_txt(text, path):
@@ -70,6 +93,139 @@ class FileManager:
         """
         with open(path + ".txt", 'a') as f:
             f.write(text + '\n')
+    @staticmethod
+    def get_random_background(base_dir):
+        folder = random.choice(list_subfolders(base_dir))
+        folder_path = os.path.join(base_dir, folder)
+
+        filename = random.choice(list_files(folder_path, ('.png', '.jpg', '.jpeg')))
+        full_path = os.path.join(folder_path, filename)
+
+        return filename, full_path
+
+    @staticmethod
+    def get_random_tiktok_image_and_mask(base_dir):
+        folder = random.choice(list_subfolders(base_dir))
+        folder_path = os.path.join(base_dir, folder)
+
+        images_path = os.path.join(folder_path, "images")
+        masks_path  = os.path.join(folder_path, "masks")
+
+        if not os.path.exists(images_path) or not os.path.exists(masks_path):
+            raise ValueError(f"Folder '{folder}' must contain 'images' and 'masks' subdirectories")
+
+        image_file = random.choice(list_files(images_path, ('.png', '.jpg', '.jpeg')))
+        image_path = os.path.join(images_path, image_file)
+
+        mask_name = os.path.splitext(image_file)[0] + ".png"
+        mask_path = os.path.join(masks_path, mask_name)
+
+        if not os.path.exists(mask_path):
+            raise FileNotFoundError(f"No mask '{mask_name}' found for image '{image_file}'")
+
+        return image_path, mask_path
+
+    @staticmethod
+    def get_random_fgr_and_mask(base_dir):
+        fgr_dir = os.path.join(base_dir, "fgr")
+        pha_dir = os.path.join(base_dir, "pha")
+
+        subdirs = sorted(list_subfolders(fgr_dir))
+        chosen_subdir = random.choice(subdirs)
+
+        fgr_subdir_path = os.path.join(fgr_dir, chosen_subdir)
+        pha_subdir_path = os.path.join(pha_dir, chosen_subdir)
+
+        filename = random.choice(list_files(fgr_subdir_path, ('.jpg',)))
+        fgr_path = os.path.join(fgr_subdir_path, filename)
+        pha_path = os.path.join(pha_subdir_path, os.path.splitext(filename)[0] + ".jpg")
+
+        if not os.path.exists(pha_path):
+            raise FileNotFoundError(f"No alpha mask '{pha_path}' found for foreground '{fgr_path}'")
+
+        return fgr_path, pha_path
+    # def get_random_background(base_dir):
+    #     subfolders = [f for f in os.listdir(base_dir)
+    #                   if os.path.isdir(os.path.join(base_dir, f))]
+    #     if not subfolders:
+    #         raise ValueError("No subfolders with backgrounds found in the directory!")
+    #
+    #     random_folder = random.choice(subfolders)
+    #     random_folder_path = os.path.join(base_dir, random_folder)
+    #
+    #     files = [f for f in os.listdir(random_folder_path)
+    #              if os.path.isfile(os.path.join(random_folder_path, f))
+    #              and f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+    #
+    #     if not files:
+    #         raise ValueError(f"No images found in the folder {random_folder}!")
+    #
+    #     random_image = random.choice(files)
+    #     random_image_path = os.path.join(random_folder_path, random_image)
+    #
+    #     return random_image ,random_image_path
+
+    # @staticmethod
+    # def get_random_tiktok_image_and_mask(tiktok_dataset_path):
+    #     subfolders = [f for f in os.listdir(tiktok_dataset_path)
+    #                   if os.path.isdir(os.path.join(tiktok_dataset_path, f))]
+    #     if not subfolders:
+    #         raise ValueError("В TikTok-датасете нет подпапок!")
+    #     random_folder = random.choice(subfolders)
+    #     random_folder_path = os.path.join(tiktok_dataset_path, random_folder)
+    #
+    #     images_path = os.path.join(random_folder_path, "images")
+    #     masks_path = os.path.join(random_folder_path, "masks")
+    #
+    #     if not os.path.exists(images_path) or not os.path.exists(masks_path):
+    #         raise ValueError(f"В папке {random_folder} отсутствуют папки images или masks!")
+    #
+    #     image_files = [f for f in os.listdir(images_path)
+    #                    if os.path.isfile(os.path.join(images_path, f))
+    #                    and f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+    #
+    #     if not image_files:
+    #         raise ValueError(f"В папке {images_path} нет изображений!")
+    #
+    #     random_image = random.choice(image_files)
+    #     random_image_path = os.path.join(images_path, random_image)
+    #
+    #     mask_filename = os.path.splitext(random_image)[0] + ".png"
+    #     random_mask_path = os.path.join(masks_path, mask_filename)
+    #
+    #     if not os.path.exists(random_mask_path):
+    #         raise ValueError(f"Для изображения {random_image} не найдена маска {mask_filename}!")
+    #
+    #     return random_image_path, random_mask_path
+    #
+    # @staticmethod
+    # def get_random_fgr_and_mask(base_dir):
+    #     fgr_dir = os.path.join(base_dir, 'fgr')
+    #     pha_dir = os.path.join(base_dir, 'pha')
+    #
+    #     # Sorted (0000–0483)
+    #     sub_dirs = sorted(os.listdir(fgr_dir))
+    #     sub_dirs = [d for d in sub_dirs if os.path.isdir(os.path.join(fgr_dir, d))]
+    #
+    #     chosen_subdir = random.choice(sub_dirs)
+    #
+    #     fgr_subdir_path = os.path.join(fgr_dir, chosen_subdir)
+    #     pha_subdir_path = os.path.join(pha_dir, chosen_subdir)
+    #
+    #     fgr_files = [f for f in os.listdir(fgr_subdir_path) if f.endswith('.jpg')]
+    #     if not fgr_files:
+    #         raise ValueError(f"Folder {chosen_subdir} is empty!")
+    #
+    #     chosen_file = random.choice(fgr_files)
+    #
+    #     fgr_path = os.path.join(fgr_subdir_path, chosen_file)
+    #     pha_path = os.path.join(pha_subdir_path,
+    #                             os.path.splitext(chosen_file)[0] + '.jpg')
+    #
+    #     if not os.path.exists(pha_path):
+    #         raise FileNotFoundError(f"Mask {pha_path} wasn't found for {fgr_path}")
+    #
+    #     return fgr_path, pha_path
 
     @staticmethod
     def save_as_grayscale_img(img, path):
@@ -173,8 +329,9 @@ class ImageUtils:
             bg_blured = np.where(label == 1, blured_img, bg_blured)
             return bg_blured
 
+
     @staticmethod
-    def add_noise(img, noise_rate):
+    def add_noise(img, noise_rate, noise_type):
         """
         Adds random noise to an image. The noise can be uniform or Gaussian.
 
@@ -192,8 +349,30 @@ class ImageUtils:
         elif noise_type == 'gaussian':
             noise = np.random.randn(*img.shape) * arg
             noise = np.clip(noise, -arg, arg)
-        # Ensure that image values stay within valid range after adding noise.
-        return np.clip(img, arg, 255 - arg) + noise
+        noisy_img = img + noise
+        return np.clip(noisy_img, 0, 255).astype(np.uint8)
+        # return np.clip(img, arg, 255 - arg) + noise
+
+    # @staticmethod
+    # def scale_img(img, scale_rate):
+    #     """
+    #     Scales the image by a given scale factor.
+    #
+    #     :param img: Input image as a NumPy array.
+    #     :param scale_rate: Scaling factor (can be generated randomly).
+    #     :return: Resized image.
+    #     :raises ValueError: If scale_rate is zero.
+    #     """
+    #     scale_rate = ImageUtils.get_rate(scale_rate)
+    #     if scale_rate == 1:
+    #
+    #         return img
+    #     elif scale_rate == 0:
+    #         raise ValueError("scale_rate cannot be zero")
+    #     h, w, _ = img.shape
+    #     scaled_img = cv2.resize(img, (int(w * scale_rate), int(h * scale_rate)))
+    #
+    #     return scaled_img
 
     @staticmethod
     def scale_img(img, scale_rate):
@@ -210,8 +389,16 @@ class ImageUtils:
             return img
         elif scale_rate == 0:
             raise ValueError("scale_rate cannot be zero")
-        h, w, _ = img.shape
-        scaled_img = cv2.resize(img, (int(w * scale_rate), int(h * scale_rate)))
+        h, w, channels = img.shape
+        if channels == 4:
+            bgr = img[:, :, :3]
+            alpha = img[:, :, 3]
+            new_size = (int(w * scale_rate), int(h * scale_rate))
+            bgr_resized = cv2.resize(bgr, new_size, interpolation=cv2.INTER_LINEAR)
+            alpha_resized = cv2.resize(alpha, new_size, interpolation=cv2.INTER_LINEAR)
+            scaled_img = np.dstack((bgr_resized, alpha_resized))
+        elif channels == 3:
+            scaled_img = cv2.resize(img, (int(w * scale_rate), int(h * scale_rate)), interpolation=cv2.INTER_LINEAR)
         return scaled_img
 
     @staticmethod
@@ -262,7 +449,7 @@ class ImageUtils:
         return " ".join([cx, cy, ax, ay])
 
     @staticmethod
-    def image_rotation(img, angle_rate, interpolation_type=cv2.INTER_LINEAR):
+    def image_rotation(img, angle_rate,borderMode = None, interpolation_type=cv2.INTER_LINEAR, save_original_shape=True):
         """
         Rotates an image by a given angle.
 
@@ -278,12 +465,38 @@ class ImageUtils:
         else:
             angle = angle_rate
         matrix = cv2.getRotationMatrix2D(center, angle, 1)
-        rotated_img = cv2.warpAffine(img, matrix, (w, h), borderMode=cv2.BORDER_REFLECT, flags=interpolation_type)
+        if save_original_shape:
+            output_size = (w, h)
+        else:
+            corners = np.array([
+                [w / 2, -h / 2],
+                [w / 2, h / 2],
+                [-w / 2, -h / 2],
+                [-w / 2, h / 2]
+            ])
+            cos_theta = matrix[0, 0]
+            sin_theta = matrix[0, 1]
+            rotation_matrix = np.array([[cos_theta, sin_theta], [-sin_theta, cos_theta]])
+            rotated_corners = np.dot(corners, rotation_matrix.T)
+
+            new_w = int(2 * np.max(np.abs(rotated_corners[:, 0])))
+            new_h = int(2 * np.max(np.abs(rotated_corners[:, 1])))
+            output_size = (new_w, new_h)
+
+            matrix[0, 2] += (new_w - w) / 2
+            matrix[1, 2] += (new_h - h) / 2
+
+        if borderMode:
+            rotated_img = cv2.warpAffine(img, matrix, output_size, borderMode=cv2.BORDER_REFLECT, flags=interpolation_type)
+        else:
+            rotated_img = cv2.warpAffine(img, matrix, output_size, flags=interpolation_type)
         return angle, rotated_img
 
     @staticmethod
-    def apply_color_jitter(image, brightness_range=(0.7, 1.3), contrast_range=(0.7, 1.3),
-                           saturation_range=(0.7, 1.5), hue_range=(-0.1, 0.1), jitter_probability=0.8):
+    def apply_color_jitter(image, contrast_brightness_probability, brightness_range, contrast_range,
+                           saturation_range, hue_range, jitter_probability):
+    # def apply_color_jitter(image, contrast_brightness_probability= 0.4, brightness_range = (0.7,1.3), contrast_range = (0.7,1.3),
+    #                        saturation_range=(0.7, 1.5), hue_range=(-0.1, 0.1), jitter_probability=0.8):
         """
         Applies color jitter to the image, adjusting brightness, contrast, saturation, and hue.
 
@@ -295,26 +508,42 @@ class ImageUtils:
         :param jitter_probability: Probability threshold for applying jitter.
         :return: Color jittered image.
         """
-        if np.random.rand() < jitter_probability:
+        if np.random.rand() >= max(jitter_probability, contrast_brightness_probability):
             return image
         image_float = image.astype(np.float32)
-        contrast_factor = ImageUtils.get_rate(contrast_range)
-        mean_per_channel = np.mean(image_float, axis=(0, 1))
-        contrasted = mean_per_channel + contrast_factor * (image_float - mean_per_channel)
-        image_contrast = np.clip(contrasted, 0, 255).astype(np.uint8)
 
-        hsv = cv2.cvtColor(image_contrast, cv2.COLOR_BGR2HSV).astype(np.float32)
+        if np.random.rand() < contrast_brightness_probability:
+            contrast_factor = ImageUtils.get_rate(contrast_range)
+            mean_per_channel = np.mean(image_float, axis=(0, 1))
+            image_float = mean_per_channel + contrast_factor * (image_float - mean_per_channel)
 
-        hsv[:, :, 2] *= ImageUtils.get_rate(brightness_range)
-        hsv[:, :, 1] *= ImageUtils.get_rate(saturation_range)
-        hsv[:, :, 0] += ImageUtils.get_rate(hue_range) * 180
+        hsv = cv2.cvtColor(image_float.astype(np.uint8), cv2.COLOR_BGR2HSV).astype(np.float32)
 
-        hsv[:, :, 0] = np.mod(hsv[:, :, 0], 180)
-        hsv[:, :, 1] = np.clip(hsv[:, :, 1], 0, 255)
-        hsv[:, :, 2] = np.clip(hsv[:, :, 2], 0, 255)
+        if np.random.rand() < contrast_brightness_probability:
+            brightness_factor = ImageUtils.get_rate(brightness_range)
+            hsv[:, :, 2] *= brightness_factor
+            hsv[:, :, 2] = np.clip(hsv[:, :, 2], 0, 255)
+
+        if np.random.rand() < jitter_probability:
+            # Saturation
+            saturation_factor = ImageUtils.get_rate(saturation_range)
+            hsv[:, :, 1] *= saturation_factor
+            hsv[:, :, 1] = np.clip(hsv[:, :, 1], 0, 255)
+
+            # Hue
+            hue_shift = ImageUtils.get_rate(hue_range) * 180  # ±18°
+            hsv[:, :, 0] += hue_shift
+            hsv[:, :, 0] = np.mod(hsv[:, :, 0], 180)
 
         hsv_uint8 = np.clip(hsv, 0, 255).astype(np.uint8)
         return cv2.cvtColor(hsv_uint8, cv2.COLOR_HSV2BGR)
+
+    @staticmethod
+    def sigmoid_contrast(image, k):
+        myu = 0.5
+        image = image / 255.0
+        image = 1 / (1 + np.exp(-k * (image - myu)))
+        return (image * 255).astype(np.uint8)
 
 
 ###############################################################################
@@ -377,9 +606,25 @@ class ImageGeneratorUtils:
             x, y = 0, 0
         # Adjust scaling based on depth if required.
         if depth:
-            scaled_obj = cv2.resize(scaled_obj,
-                                    (int(ow * (0.1 + (1 - 0.1) * y / bm)), int(oh * (0.1 + (1 - 0.1) * y / bm))))
+            scale_rate = 0.1 + (1 - 0.1) * y / bm
+            new_size = (int(ow * scale_rate), int(oh * scale_rate))
+            h, w, channels = scaled_obj.shape
 
+            if channels == 4:
+                bgr = scaled_obj[:, :, :3]
+                alpha = scaled_obj[:, :, 3]
+
+                # INTER_AREA
+                bgr_resized = cv2.resize(bgr, new_size, interpolation=cv2.INTER_AREA)
+                alpha_resized = cv2.resize(alpha, new_size, interpolation=cv2.INTER_AREA)
+
+                scaled_obj = np.dstack((bgr_resized, alpha_resized))
+
+            elif channels == 3:
+                scaled_obj = cv2.resize(scaled_obj, new_size, interpolation=cv2.INTER_AREA)
+            # scaled_obj = cv2.resize(scaled_obj,
+            #                         (int(ow * (0.1 + (1 - 0.1) * y / bm)), int(oh * (0.1 + (1 - 0.1) * y / bm))))
+            #
             new_oh, new_ow = scaled_obj.shape[:2]
 
             if allow_out_of_bounds:
@@ -417,17 +662,17 @@ class ImageGeneratorUtils:
         x, y, scaled_obj = generate_obj_point
         # Optionally flip the object image horizontally.
 
-        flipped_obj = ImageUtils.flip_img(scaled_obj, flip_probability)
+        flipped_obj = ImageUtils.flip_img(scaled_obj, synthetic_flip_probability)
         # Rotate the object if foreground rotation is enabled.
         if foreground_rotation:
-            _, flipped_obj = ImageUtils.image_rotation(flipped_obj, angle)
+            _, flipped_obj = ImageUtils.image_rotation(flipped_obj, angle, borderMode=None ,interpolation_type=cv2.INTER_LINEAR, save_original_shape = False)
 
         # Copy the object image for alpha processing.
         blured_img = flipped_obj.copy()
         # Extract alpha channel and normalize it.
         alpha = (blured_img[:, :, -1] / 255.0).astype(np.float32)
         # Apply blur to the alpha channel.
-        blurred_alpha = ImageUtils.add_alpha_blur(alpha, alpha_blur_type, alpha_blur_kernel_range)
+        blurred_alpha = ImageUtils.add_alpha_blur(alpha, alpha_blur_type, synthetic_alpha_blur_kernel_range)
         # Combine the original and blurred alpha values.
         blured_img[:, :, -1] = (blurred_alpha * alpha * 255).astype(np.uint8)
 
@@ -483,15 +728,29 @@ class ImageGeneratorUtils:
 
         bg_alpha = None
         # If the object image has an alpha channel, blend using the alpha mask.
+        # if obj_img.shape[2] == 4:
+        #     alpha = obj_img[fh:th, fw:tw, -1] / 255.0
+        #     alpha_n = np.array([alpha] * 3).transpose((1, 2, 0))
+        #     alpha_t = 1.0 - alpha_n
+        #     # Blend the background and object images.
+        #     bg[max(0, y):min(y + h, bh), max(0, x):min(x + w, bw)] = paste * alpha_t + obj * alpha_n
+        #     # Create an alpha mask for the pasted region.
+        #     bg_alpha = np.zeros((bh, bw, c), dtype=np.uint8)
+        #     bg_alpha[max(0, y):min(y + h, bh), max(0, x):min(x + w, bw)] = alpha_n * 255
+        # else:
+        #     # If no alpha channel, directly replace the background region with the object.
+        #     bg[max(0, y):min(y + h, bh), max(0, x):min(x + w, bw)] = obj
+        #
+        # return bg, bg_alpha
         if obj_img.shape[2] == 4:
             alpha = obj_img[fh:th, fw:tw, -1] / 255.0
             alpha_n = np.array([alpha] * 3).transpose((1, 2, 0))
             alpha_t = 1.0 - alpha_n
             # Blend the background and object images.
-            bg[max(0, y):min(y + h, bh), max(0, x):min(x + w, bw)] = paste * alpha_t + obj * alpha_n
+            bg[max(0, y):min(y + h, bh), max(0, x):min(x + w, bw)] =  np.clip(paste * alpha_t + obj * alpha_n, 0, 255).astype(np.uint8)
             # Create an alpha mask for the pasted region.
             bg_alpha = np.zeros((bh, bw, c), dtype=np.uint8)
-            bg_alpha[max(0, y):min(y + h, bh), max(0, x):min(x + w, bw)] = alpha_n * 255
+            bg_alpha[max(0, y):min(y + h, bh), max(0, x):min(x + w, bw)] = np.clip(alpha_n * 255, 0, 255).astype(np.uint8)
         else:
             # If no alpha channel, directly replace the background region with the object.
             bg[max(0, y):min(y + h, bh), max(0, x):min(x + w, bw)] = obj

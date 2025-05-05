@@ -5,6 +5,7 @@ import torch
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 from other.losses_utils import DistanceCalculator
+from torch.utils.data import ConcatDataset
 
 # Import global parameters and helper classes/functions from external modules.
 from other.parsing.train_args_parser import *
@@ -14,6 +15,33 @@ from SyntheticData_main.run import (
 )
 from torchvision.transforms import InterpolationMode
 
+class AdaptivePad:
+    def __init__(self, target_size, fill=0):
+        self.target_size = target_size
+        self.fill = fill
+
+    def __call__(self, img):
+        img = img.convert("RGB") if img.mode != "RGB" else img
+        w, h = img.size
+        target_w, target_h = self.target_size
+        target_aspect = target_w / target_h
+        aspect_ratio = w / h
+
+        if aspect_ratio > target_aspect:
+            # new_h = int(w / target_aspect)
+            pad_top = (target_h - h) // 2
+            pad_bottom = target_h - h - pad_top
+            padding = (0, pad_top, 0, pad_bottom)
+        elif aspect_ratio < target_aspect:
+            # new_w = int(h * target_aspect)
+            pad_left = (target_w - w) // 2
+            pad_right = target_w - w - pad_left
+            padding = (pad_left, 0, pad_right, 0)
+        else:
+            return img
+
+
+        return transforms.functional.pad(img, padding, fill=self.fill)
 
 ###############################################################################
 # Custom Background Transform
@@ -25,24 +53,33 @@ class CustomBackgroundTransform:
     images (input, label, mask) by converting them to the required format, applying OpenCV
     transformations, and then converting them back.
     """
-    def __init__(self,resize_width,resize_height, rotation_enabled,
-                 noise_level_range, flip_probability, jitter_probability, brightness_range,
-                 contrast_range, saturation_range, hue_range):
+
+    def __init__(self,resize_width, resize_height, rotation_enabled,
+                 noise_level_range, noise_type, flip_probability, jitter_probability
+                 , saturation_range, hue_range, gamma_probability, gamma_limit, sigmoid_probability, sigmoid_limit,
+                 contrast_brightness_probability, brightness_range, contrast_range,
+                 clahe_probability, tile_grid_size, clip_limit, motion_blur_probability, motion_blur_limit
+                 , full_img_shadow_roi, full_img_num_shadows_limit, full_img_shadow_dimension,
+                 full_img_shadow_intensity_range, full_img_shadow_transform_probability,
+                 full_img_dropout_probability, full_img_dropout_holes_range, full_img_dropout_height_range,
+                 full_img_dropout_width_range, full_img_dropout_mask_fill_value, full_img_dropout_roi):
+
         # Instantiate the BackgroundTransformer with provided configuration parameters.
         self.bg_transformer = BackgroundTransformer(
-            resize_width,
-            resize_height,
-            rotation_enabled,
-            noise_level_range,
-            flip_probability,
-            jitter_probability,
-            brightness_range,
-            contrast_range,
-            saturation_range,
-            hue_range,
+            resize_width, resize_height, rotation_enabled,
+            noise_level_range, noise_type, flip_probability, jitter_probability
+            , saturation_range, hue_range, gamma_probability, gamma_limit, sigmoid_probability, sigmoid_limit,
+            contrast_brightness_probability, brightness_range, contrast_range,
+            clahe_probability, tile_grid_size, clip_limit, motion_blur_probability, motion_blur_limit
+            , full_img_shadow_roi, full_img_num_shadows_limit, full_img_shadow_dimension,
+            full_img_shadow_intensity_range, full_img_shadow_transform_probability,
+            full_img_dropout_probability, full_img_dropout_holes_range, full_img_dropout_height_range,
+            full_img_dropout_width_range, full_img_dropout_mask_fill_value, full_img_dropout_roi,
         )
 
-    def __call__(self, img, label, mask):
+    def __call__(self, img, label):
+        # def __call__(self, img, label, mask):
+
         """
         Converts input images from PIL (or array) format to OpenCV BGR format, applies the
         background transformations, then converts the transformed images back to RGB.
@@ -55,14 +92,17 @@ class CustomBackgroundTransform:
         # Convert the images from RGB to BGR for OpenCV processing.
         img = cv2.cvtColor(np.array(img).astype(np.uint8), cv2.COLOR_RGB2BGR)
         label = cv2.cvtColor(np.array(label).astype(np.uint8), cv2.COLOR_RGB2BGR)
-        mask = cv2.cvtColor(np.array(mask).astype(np.uint8), cv2.COLOR_RGB2BGR)
+        # mask = cv2.cvtColor(np.array(mask).astype(np.uint8), cv2.COLOR_RGB2BGR)
         # Apply transformations using the BackgroundTransformer.
-        img, label, mask = self.bg_transformer.apply_transformations(img, label, mask)
+        # img, label, mask = self.bg_transformer.apply_transformations(img, label, mask)
+        img, label = self.bg_transformer.apply_transformations(img, label)
+
         # Convert the images back to RGB for further processing in PyTorch.
         img = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB)
         label = cv2.cvtColor(label.astype(np.uint8), cv2.COLOR_BGR2RGB)
-        mask = cv2.cvtColor(mask.astype(np.uint8), cv2.COLOR_BGR2RGB)
-        return img, label, mask
+        # mask = cv2.cvtColor(mask.astype(np.uint8), cv2.COLOR_BGR2RGB)
+        return img, label
+
 
 ###############################################################################
 # Define Base and Input/Target Transforms
@@ -70,16 +110,45 @@ class CustomBackgroundTransform:
 
 # Initialize our custom transform using global parameters.
 custom_transform = CustomBackgroundTransform(
-    resize_width=resize_width,
-    resize_height=resize_height,
-    rotation_enabled=background_rotation,
-    noise_level_range=noise_level_range,
-    flip_probability=flip_probability,
-    jitter_probability=jitter_probability,
-    brightness_range=brightness_range,
-    contrast_range=contrast_range,
-    saturation_range=saturation_range,
-    hue_range=hue_range,
+    resize_width=real_resize_width,
+    resize_height=real_resize_height,
+    rotation_enabled=real_background_rotation,  # Boolean flag for rotation
+    noise_level_range=real_noise_level_range,
+    noise_type=real_noise_type,
+    flip_probability=real_flip_probability,
+
+    jitter_probability=real_jitter_probability,
+
+    saturation_range=real_saturation_range,
+    hue_range=real_hue_range,
+    gamma_probability=real_gamma_probability,
+    gamma_limit=real_gamma_limit,
+
+    sigmoid_probability=real_sigmoid_probability,
+    sigmoid_limit=real_sigmoid_limit,
+
+    contrast_brightness_probability=real_contrast_brightness_probability,
+    brightness_range=real_brightness_range,
+    contrast_range=real_contrast_range,
+
+    clahe_probability=real_clahe_probability,
+    tile_grid_size=real_tile_grid_size,
+    clip_limit=real_clip_limit,
+    motion_blur_probability=real_motion_blur_probability,
+    motion_blur_limit=real_motion_blur_limit,
+
+    full_img_shadow_roi=real_shadow_roi,
+    full_img_num_shadows_limit=real_num_shadows_limit,
+    full_img_shadow_dimension=real_shadow_dimension,
+    full_img_shadow_intensity_range=real_shadow_intensity_range,
+    full_img_shadow_transform_probability=real_shadow_transform_probability,
+
+    full_img_dropout_probability=real_dropout_probability,
+    full_img_dropout_holes_range=real_dropout_holes_range,
+    full_img_dropout_height_range=real_dropout_height_range,
+    full_img_dropout_width_range=real_dropout_width_range,
+    full_img_dropout_mask_fill_value=real_dropout_mask_fill_value,
+    full_img_dropout_roi=real_dropout_roi,
 )
 
 # The base transform converts a PIL image to a tensor.
@@ -97,21 +166,26 @@ input_to_tensor_transform = transforms.Compose([
 # Validation base transform includes resizing using nearest interpolation.
 val_base_transform = transforms.Compose([
     transforms.ToPILImage(),
-    transforms.Resize((resize_height, resize_width), interpolation=InterpolationMode.NEAREST),
+    AdaptivePad(target_size=(real_resize_width*2, real_resize_height*2), fill=0),
+    transforms.Resize((real_resize_height, real_resize_width), interpolation=InterpolationMode.NEAREST),
     transforms.ToTensor(),
 ])
 
 # Validation input transform applies resizing with bilinear interpolation and normalization.
 val_input_to_tensor_transform = transforms.Compose([
     transforms.ToPILImage(),
-    transforms.Resize((resize_height, resize_width), interpolation=InterpolationMode.BILINEAR),
+    AdaptivePad(target_size=(real_resize_width*2, real_resize_height*2), fill=(0, 0, 0)),
+    transforms.Resize((real_resize_height, real_resize_width), interpolation=InterpolationMode.BILINEAR),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
 ])
 
+
+
 # Function that applies the custom background transform.
-def apply_custom_transform(img, label, mask):
-    return custom_transform(img, label, mask)
+def apply_custom_transform(img, label):
+    return custom_transform(img, label)
+
 
 ###############################################################################
 # Triplet Transform for Dataset
@@ -123,7 +197,8 @@ class TripletTransform:
     The transform can optionally apply a custom transformation (e.g., data augmentation) before
     converting images into tensors. The mask is processed differently based on a global computing mode.
     """
-    def __init__(self, base_transform,input_to_tensor_transform,transform=None):
+
+    def __init__(self, base_transform, input_to_tensor_transform, transform=None):
         # Optional custom transformation function (e.g., custom augmentation).
         self.transform = transform
         # Base transformation (e.g., converting to tensor).
@@ -133,10 +208,13 @@ class TripletTransform:
         # Mode of computing masks, defined by global natural_data_mask_pre_calculation_mode.
         self.computing = natural_data_mask_pre_calculation_mode
 
-    def __call__(self, input_image, target_image, mask):
+
+    def __call__(self, input_image, target_image):
+    # def __call__(self, input_image, target_image, mask):
         # If a custom transform is provided, apply it to all three images.
         if self.transform:
-            input_image,target_image,mask_image = self.transform(input_image, target_image, mask)
+            input_image, target_image = self.transform(input_image, target_image)
+            # input_image, target_image, mask_image = self.transform(input_image, target_image, mask)
         # Convert the input image using the normalization transform.
         input_image = self.input_to_tensor_transform(input_image)
         # Convert the target image using the base transform.
@@ -152,11 +230,10 @@ class TripletTransform:
             mask = self.base_transform(mask.to(dtype=torch.float32))[0]
         elif self.computing == 'loss':
             mask = torch.zeros_like(target_image[0])
-        else:
-            mask = base_transform(mask_image)[0].squeeze()
+        # else:
+        #     mask = base_transform(mask_image)[0].squeeze()
         # Return the transformed triplet.
         return input_image, target_image, mask
-
 
 
 ###############################################################################
@@ -168,6 +245,7 @@ class CocoDataset(Dataset):
 
     The dataset expects images to be stored in separate folders for inputs, targets, and masks.
     """
+
     def __init__(self, cocodataset_path: str, transform=None):
         # Determine whether to use precomputed masks based on global configuration.
         self.pre_computing = natural_data_mask_saving is True
@@ -191,18 +269,21 @@ class CocoDataset(Dataset):
         # Load images from disk using OpenCV.
         input_img = cv2.imread(self.input_images[idx])
         target_img = cv2.imread(self.target_images[idx])
-        # Use precomputed mask if available; otherwise, create a zero mask.
-        dist_mask = cv2.imread(self.mask_images[idx]) if self.pre_computing else np.zeros_like(target_img)
+        # # Use precomputed mask if available; otherwise, create a zero mask.
+        # dist_mask = cv2.imread(self.mask_images[idx]) if self.pre_computing else np.zeros_like(target_img)
         # Apply the provided transformations.
         if self.transform:
-            input_img, target_img, dist_mask = self.transform(input_img, target_img, dist_mask)
-            if self.pre_computing:
-                # Assume the mask is a tensor with shape [1, H, W] after transformation.
-                dist_mask = dist_mask[0, :, :]
+            input_img, target_img, dist_mask = self.transform(input_img, target_img)
+
+            # input_img, target_img, dist_mask = self.transform(input_img, target_img, dist_mask)
+            # if self.pre_computing:
+            #     # Assume the mask is a tensor with shape [1, H, W] after transformation.
+            #     dist_mask = dist_mask[0, :, :]
         # Convert the input image from BGR (OpenCV default) to RGB.
         input_img = input_img[[2, 1, 0], :, :]
         # Return the input tensor, target tensor (first channel), and mask.
         return input_img, target_img[0, :, :], dist_mask
+
 
 ###############################################################################
 # Synthetic Dataset
@@ -214,7 +295,8 @@ class SyntheticDataset(Dataset):
 
     The dataset leverages a DataGenerator instance to produce synthetic samples.
     """
-    def __init__(self, length = None, test_safe_to_desk: bool = False):
+
+    def __init__(self, length=None, test_safe_to_desk: bool = False):
         # Flag indicating whether to save generated samples to disk.
         self.test_safe_to_desk = test_safe_to_desk
         # Initialize the generator as an iterator over the DataGenerator.
@@ -253,6 +335,7 @@ class SyntheticDataset(Dataset):
         # return the first channel as the target mask.
         return input_img, target_img[0, :, :], dist_mask[0, :, :]
 
+
 ###############################################################################
 # Mixed Dataset
 ###############################################################################
@@ -263,18 +346,18 @@ class MixedDataset(Dataset):
     The COCO dataset forms the primary dataset and the synthetic dataset is added to
     augment the total number of samples. The scale_factor determines the proportion of synthetic data.
     """
+
     def __init__(self, coco_dataset: Dataset, synthetic_dataset: Dataset, scale_factor: float = 1.5):
         self.coco_dataset = coco_dataset
         self.synthetic_dataset = synthetic_dataset
         self.scale_factor = scale_factor
         # Calculate lengths for COCO and synthetic parts.
         self.coco_length = len(self.coco_dataset)
-        self.synthetic_length = int(self.coco_length * (self.scale_factor-1))
+        self.synthetic_length = int(self.coco_length * (self.scale_factor - 1))
         # Set the length of the synthetic dataset.
         self.synthetic_dataset.len = self.synthetic_length
         # Total dataset length is the sum of COCO and synthetic samples.
         self.total_length = self.coco_length + self.synthetic_length
-
 
     def __len__(self):
         return self.total_length
@@ -293,26 +376,102 @@ class MixedDataset(Dataset):
             else:
                 raise IndexError("Index out of range for MixedDataset.")
 
+
+class EvalDataset(Dataset):
+    def __init__(self, eval_dir, transform=val_input_to_tensor_transform):
+        self.input_path = os.path.join(eval_dir, "input")
+        self.files = [f for f in os.listdir(self.input_path) if os.path.isfile(os.path.join(self.input_path, f))]
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.files)
+
+    def __getitem__(self, idx):
+        file_path = os.path.join(self.input_path, self.files[idx])
+        image = cv2.imread(file_path, cv2.IMREAD_COLOR)
+        original_h, original_w = image.shape[:2]
+        input_img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        if self.transform:
+            input_img = self.transform(input_img)
+        return input_img, self.files[idx], (original_h, original_w)
+
+
+
+
 ###############################################################################
 # Dataset Initialization Examples
 ###############################################################################
 # Initialize the validation COCO dataset with validation-specific transforms.
-val_coco_dataset = CocoDataset(
-        cocodataset_path =val_coco_data_dir,
-        transform=TripletTransform(
-            transform=None,base_transform=val_base_transform,input_to_tensor_transform=val_input_to_tensor_transform
-        ))
-# Initialize the synthetic dataset without saving generated samples to disk.
-synthetic_dataset = SyntheticDataset(
-        length=None,
-        test_safe_to_desk=False,
-
-    )
-# Initialize the training COCO dataset with a custom augmentation transform.
-train_coco_dataset = CocoDataset(
-        cocodataset_path=train_coco_data_dir,
-        transform=TripletTransform(
-            transform=apply_custom_transform,base_transform=base_transform,input_to_tensor_transform=input_to_tensor_transform
-        ))
-# Create the mixed dataset combining COCO and synthetic samples using the provided scale factor.
-mixed_dataset = MixedDataset(train_coco_dataset, synthetic_dataset, scale_factor=1.5)
+# -------------------------------
+# Data Preparation
+# -------------------------------
+# Create a COCO-format dataset for training with a specified set of transformations.
+# train_coco_dataset = CocoDataset(
+#     cocodataset_path=train_coco_data_dir,
+#     transform=TripletTransform(
+#         transform=apply_custom_transform,  # Custom augmentation function for foreground objects.
+#         base_transform=base_transform,  # Base transformation applied to the input images.
+#         input_to_tensor_transform=input_to_tensor_transform  # Converts inputs to PyTorch tensors.
+#     )
+# )
+# train_mapillary_dataset = CocoDataset(
+#     cocodataset_path=train_mapillary_data_dir,
+#     transform=TripletTransform(
+#         transform=apply_custom_transform,
+#         base_transform=base_transform,
+#         input_to_tensor_transform=input_to_tensor_transform
+#     )
+# )
+#
+# # Create a synthetic dataset (for example, generated images or data augmentation).
+# synthetic_dataset = SyntheticDataset(
+#     length=None,  # If None, use the default or full dataset length.
+#     test_safe_to_desk=False,  # Whether to persist generated data to disk.
+# )
+#
+# # Create a validation COCO dataset with validation-specific transformations.
+# val_coco_dataset = CocoDataset(
+#     cocodataset_path=val_coco_data_dir,
+#     transform=TripletTransform(
+#         transform=None,  # No extra augmentation on validation images.
+#         base_transform=val_base_transform,  # Base validation transformation.
+#         input_to_tensor_transform=val_input_to_tensor_transform  # Convert validation inputs to tensors.
+#     )
+# )
+# combined_dataset = ConcatDataset([train_coco_dataset, train_mapillary_dataset])
+#
+# # Combine the training COCO dataset and synthetic dataset with a scale factor to form a mixed dataset.
+# mixed_dataset = MixedDataset(combined_dataset, synthetic_dataset, scale_factor=scale_factor)
+#
+# for i in range(3000):
+#     input_img, target_img, dist_img = val_coco_dataset[i]
+#
+#     if isinstance(input_img, torch.Tensor):
+#         unnormalize = transforms.Normalize(mean=[-1, -1, -1], std=[2, 2, 2])
+#         input_img = unnormalize(input_img)
+#         input_np = input_img.permute(1, 2, 0).numpy()
+#         input_np = (input_np * 255).astype(np.uint8)
+#         input_bgr = cv2.cvtColor(input_np, cv2.COLOR_RGB2BGR)
+#     else:
+#         input_bgr = input_img
+#
+#     if isinstance(target_img, torch.Tensor):
+#         target_np = target_img.numpy()
+#         target_np = (target_np * 255).astype(np.uint8)
+#         target_bgr = cv2.cvtColor(target_np, cv2.COLOR_GRAY2BGR)
+#     else:
+#         target_bgr = target_img
+#
+#     if isinstance(dist_img, torch.Tensor):
+#         dist_np = dist_img.numpy()
+#         dist_np = (dist_np * 255).astype(np.uint8)
+#         dist_bgr = cv2.cvtColor(dist_np, cv2.COLOR_GRAY2BGR)
+#     else:
+#         dist_bgr = dist_img
+#     combined = np.hstack((input_bgr, target_bgr, dist_bgr))
+#     cv2.imshow("Input (left), Target (middle), Mask (right)", combined)
+#     key = cv2.waitKey(0)
+#     if key == 27:  # Exit if ESC is pressed
+#         break
+#
+# cv2.destroyAllWindows()

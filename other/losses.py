@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from other.parsing.train_args_parser import *
 from other.losses_utils import *
 
+
 ###############################################################################
 # BlurBoundaryLoss Class
 ###############################################################################
@@ -34,7 +35,7 @@ class BlurBoundaryLoss(nn.Module):
         # The function below finds boundaries after applying a blur to the targets.
         # Note: targets are unsqueezed to add a channel dimension (i.e. [B, 1, H, W])
         boundaries = ImageProcessor.find_boundary_pixels_using_blur(
-            targets.unsqueeze(1), alpha_blur_type, alpha_blur_kernel_range
+            targets.unsqueeze(1), alpha_blur_type, synthetic_alpha_blur_kernel_range
         )
         return boundaries
 
@@ -105,7 +106,8 @@ class BoundaryLossCalculator(nn.Module):
             masks[indices] = distance_maps.squeeze(1)
 
         # Binarize the outputs using a given threshold (global parameter 'threshold').
-        output_array_binary = ImageProcessor.binarize_array(outputs.detach(),threshold=threshold)
+        # print(torch.min(torch.sigmoid(outputs)),torch.max(torch.sigmoid(outputs)))
+        output_array_binary = ImageProcessor.binarize_array(torch.sigmoid(outputs).detach(),threshold=threshold)
         # Initialize an empty tensor to store error signals.
         res = torch.zeros_like(output_array_binary, dtype=torch.int, device=self.device)
         # Set error signal to 1 where prediction is positive but target is non-positive.
