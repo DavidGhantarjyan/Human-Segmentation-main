@@ -109,4 +109,3 @@ However, please note that some **datasets and external resources** used during d
 
 - **Deep Guided Filter (wuhuikai)**  
   Also released under the [MIT License](https://github.com/wuhuikai/DeepGuidedFilter/blob/master/LICENSE).  
-  Please verify any usage restrictions or cite the author accordingly.
