@@ -84,12 +84,6 @@ Example Markdown for a YouTube video: [Watch the demo video](https://www.youtube
 - **Differentiable Guided Filter**: A promising direction is to integrate the Guided Filter directly into the neural network architecture as a differentiable layer. This would allow for end-to-end training, enabling the filter parameters to be learned jointly with the network weights, potentially leading to further improvements in segmentation quality.
 - **Spatio-Temporal Dependencies**: Incorporating recurrent neural network blocks, such as ConvLSTM or ConvGRU, into the segmentation architecture could enhance performance by enabling the model to account for spatio-temporal dependencies and local context, particularly beneficial for video-based human segmentation.
 
-## Installation
-*To be added: Instructions for setting up the project environment, including dependencies and required libraries.*
-
-## Usage
-*To be added: Instructions for running the model, including example commands and input/output details.*
-
 ## License
 This project is released under the **MIT License** — you are free to use, modify, and distribute the code, provided that this copyright notice is included.
 
