@@ -108,5 +108,5 @@ However, please note that certain datasets and external resources used during de
 
 - **Boundary Loss (LIVIAETS)**: Released under the [MIT License](https://github.com/LIVIAETS/boundary-loss/blob/master/LICENSE), permitting use and redistribution with attribution.
 
-- **Deep Guided Filter (wuhuikai)**: ⚠️ No explicit license provided  
+- **Deep Guided Filter (wuhuikai)**:  Released under [MIT License]
   ([GitHub Repository](https://github.com/wuhuikai/DeepGuidedFilter)) — usage may require explicit permission from the author.
