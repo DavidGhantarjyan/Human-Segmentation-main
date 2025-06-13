@@ -91,15 +91,22 @@ Example Markdown for a YouTube video: [Watch the demo video](https://www.youtube
 *To be added: Instructions for running the model, including example commands and input/output details.*
 
 ## License
-This project is released under the MIT License — you are free to use, modify, and distribute the code, provided that this copyright notice is included.
+This project is released under the **MIT License** — you are free to use, modify, and distribute the code, provided that this copyright notice is included.
 
 However, please note that certain datasets and external resources used during development are subject to their own licenses:
 
-- **COCO Dataset**: Creative Commons Attribution 4.0 (CC BY 4.0)  
-  [COCO on PapersWithCode](https://paperswithcode.com/dataset/coco)
-- **Mapillary Vistas Dataset**: Creative Commons Attribution-NonCommercial-ShareAlike 4.0 (CC BY-NC-SA 4.0)  
-  [Mapillary Vistas](https://www.mapillary.com/dataset/vistas)
-- **TikTok Dataset**: Creative Commons Attribution-NonCommercial 4.0 (CC BY-NC 4.0)  
-  [As listed on PapersWithCode](https://paperswithcode.com/dataset/tiktok) — for non-commercial use only.
-- **VideoMatte240K Dataset**: Released under MIT License, permitting use and redistribution.
-- **Boundary Loss (LIVIAETS)**: Released under the MIT License, permitting use and redistribution with attribution.
+- **COCO Dataset**: [Creative Commons Attribution 4.0 (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/)  
+  ([COCO on PapersWithCode](https://paperswithcode.com/dataset/coco))
+
+- **Mapillary Vistas Dataset**: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 (CC BY-NC-SA 4.0)](https://creativecommons.org/licenses/by-nc-sa/4.0/)  
+  ([Mapillary Vistas](https://www.mapillary.com/dataset/vistas))
+
+- **TikTok Dataset**: [Creative Commons Attribution-NonCommercial 4.0 (CC BY-NC 4.0)](https://creativecommons.org/licenses/by-nc/4.0/)  
+  (as listed on [Papers with Code](https://paperswithcode.com/dataset/tiktok-dataset)) — for non-commercial use only.
+
+- **VideoMatte240K Dataset**: Released under [MIT License](https://github.com/PeterL1n/VideoMatting#license), permitting use and redistribution.
+
+- **Boundary Loss (LIVIAETS)**: Released under the [MIT License](https://github.com/LIVIAETS/boundary-loss/blob/master/LICENSE), permitting use and redistribution with attribution.
+
+- **Deep Guided Filter (wuhuikai)**: ⚠️ No explicit license provided  
+  ([GitHub Repository](https://github.com/wuhuikai/DeepGuidedFilter)) — usage may require explicit permission from the author.
