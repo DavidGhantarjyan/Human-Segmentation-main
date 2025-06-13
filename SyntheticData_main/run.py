@@ -629,6 +629,8 @@ class DataGenerator:
                 if aspect_ratio > target_aspect:
                     scale = target_w / obj_width
                     new_obj_width, new_obj_height = target_w, int(obj_height * scale)
+
+                # misht esa
                 elif aspect_ratio < target_aspect:
                     scale = target_h / obj_height
                     new_obj_height, new_obj_width = target_h, int(obj_width * scale)
@@ -638,6 +640,8 @@ class DataGenerator:
                 resized_green = cv2.resize(composed_img, (new_obj_width, new_obj_height), interpolation=cv2.INTER_AREA)
                 resized_alpha = cv2.resize(mask_or_label, (new_obj_width, new_obj_height),
                                            interpolation=cv2.INTER_NEAREST)
+
+                # height often > width
                 if new_bg_width > new_obj_width:
                     max_start_x = new_bg_width - new_obj_width
                     start_x = random.randint(0, max_start_x)

@@ -1,38 +1,39 @@
 # ===========================================
 # Synthetic Data Generation and Training Configuration
 # ===========================================
-# This configuration defines data paths, output organization, augmentations, and formats for synthetic and real datasets.
+# This configuration defines paths, output formats, augmentation parameters, and
+# training behaviors for synthetic and real datasets used in a segmentation pipeline
 
 data:
   # ----------------------
   # Directory Paths
   # ----------------------
   directories:
-    train_coco_data_dir: \CocoData\train_coco_dataset_without_obj  # Path to the COCO-format training dataset.
-    train_mapillary_data_dir: \CocoData\train_mapillary_without_obj  # Path to Mapillary training dataset.
-    val_coco_data_dir: \CocoData\val_coco_dataset_without_obj      # Path to the COCO-format validation dataset.
-    test_safe_to_desk: true                 # If True, generated synthetic data is saved to disk; otherwise, kept in memory.
-    result_dir: Result\                     # Directory where synthetic data generation results are stored.
-    background_dir: Bg\                     # Directory containing background images.
-    objects_dir: Obj\                       # Directory containing foreground objects.
-    greenscreen_obj_dir: Obj_Greenscreen\
-    tiktok_obj_dir: TikTok_dataset\
-    tiktok_background_dir: PortraitBackgrounds\
+    train_coco_data_dir: \CocoData\train_coco_dataset_without_obj   # Path to the COCO-format training dataset.
+    train_mapillary_data_dir: \CocoData\train_mapillary_without_obj # Path to Mapillary training dataset.
+    val_coco_data_dir: \CocoData\val_coco_dataset_without_obj       # Path to the COCO-format validation dataset.
+    test_safe_to_desk: true                                         # If True, generated synthetic data is saved to disk; otherwise, kept in memory.
+    result_dir: Result\                                             # Directory where generated synthetic data will be saved.
+    background_dir: Bg\                                             # Directory containing background images for synthesis.
+    objects_dir: Obj\                                               # Directory with main foreground object assets.
+    greenscreen_obj_dir: Obj_Greenscreen\                           # Directory with green-screen extracted objects.
+    tiktok_obj_dir: TikTok_dataset\                                 # Directory with TikTok-specific object data.
+    tiktok_background_dir: PortraitBackgrounds\                     # Backgrounds for TikTok-style synthesis.
 
   # ----------------------
   # Output Organization
   # ----------------------
   output_settings:
     merge_outputs: false                    # If True, all generated images are stored in a single directory.
-    package_by_background: false            # If True, organize images by background source..
+    package_by_background: false            # If True, organize images by background source folder.
 
   # ----------------------
   # Synthetic Data Settings
   # ----------------------
   synthetic_data_settings:
     image_generation_application_settings:
-      tiktok_application_chance: 0.5
-      greenscreen_application_chance: 0.4
+      tiktok_application_chance: 0.5        # Probability of using TikTok data in synthesis.
+      greenscreen_application_chance: 0.4   # Probability of using green-screen objects.
     # Object Placement
     object_placement_settings:
       allow_out_of_bounds: true             # If True, objects can be placed partially outside the image boundaries.
@@ -47,95 +48,95 @@ data:
 
     # Alpha Channel Blurring
     alpha_blur_settings:
-      alpha_blur_type: GaussianBlur         # Type of blur applied to object alpha channels.
+      alpha_blur_type: GaussianBlur                      # Type of blur applied to object alpha channels.
       video_matte_alpha_blur_kernel_range: [5, 7]
-      tiktok_alpha_blur_kernel_range: [5, 9]       # Range of kernel sizes for alpha channel blurring.
+      tiktok_alpha_blur_kernel_range: [5, 9]             # Range of kernel sizes for alpha channel blurring.
       synthetic_alpha_blur_kernel_range: [3, 7]
 
     # Miscellaneous
     miscellaneous:
-      depth: true                           # If True, enables depth-aware object placement.
+      depth: true                                        # If True, enables depth-aware object placement.
 
     # Output Format
     output_format:
-      output_format: segmentation           # Output type: segmentation or classification.
+      output_format: segmentation                        # Output type: segmentation or classification.
 
     # Background Blurring
     background_blur_settings:
-      bg_blur_type: GaussianBlur            # Background blur type (GaussianBlur/bilateralFilter).
-      bg_blur_probability: 0.2             # Probability of applying background blur (increased for variety).
-      bg_blur_kernel_range: [3, 11]         # Kernel size range for background blur (stronger blur)..
+      bg_blur_type: GaussianBlur                         # Background blur type (GaussianBlur/bilateralFilter).
+      bg_blur_probability: 0.2                           # Probability of applying background blur (increased for variety).
+      bg_blur_kernel_range: [3, 11]                      # Kernel size range for background blur (stronger blur)..
 
     # Image Resizing
     resize_setting:
-      resize_width: 320                     # Target width for resized images.
-      resize_height: 180                    # Target height for resized images.
+      resize_width: 320                                  # Target width for resized images.
+      resize_height: 180                                 # Target height for resized images.
 
     # Noise Augmentation
     noise_settings:
-      noise_type: gaussian                  # Noise type (gaussian/uniform).
-      noise_level_range: [0.0, 0.15]        # Noise intensity range (increased for robustness).
+      noise_type: gaussian                               # Noise type (gaussian/uniform).
+      noise_level_range: [0.0, 0.15]                     # Noise intensity range (increased for robustness).
 
     # Geometric Transformations
     transformations:
-      flip_probability: 0.5                 # Probability of horizontal flip.
+      flip_probability: 0.5                              # Probability of horizontal flip.
 
     # Rotation Settings
     rotation_settings:
-      foreground_rotation: true             # Randomly rotate foreground objects.
-      background_rotation: true             # Randomly rotate background images.
-      background_rotation_angle: [-30, 30]   # Background rotation range (degrees, widened for diversity).
-      foreground_rotation_angle: [-15, 15]   # Foreground rotation range (degrees).
+      foreground_rotation: true                          # Randomly rotate foreground objects.
+      background_rotation: true                          # Randomly rotate background images.
+      background_rotation_angle: [-30, 30]               # Background rotation range (degrees, widened for diversity).
+      foreground_rotation_angle: [-15, 15]               # Foreground rotation range (degrees).
 
     # Color Adjustments
     color_jitter_settings:
-      jitter_probability: 0.8               # Probability of color jitter.
-      saturation_range: [0.6, 1.4]          # Saturation adjustment range (wider for variety).
-      hue_range: [-0.15, 0.15]              # Hue adjustment range (wider for variety).
+      jitter_probability: 0.8                            # Probability of color jitter.
+      saturation_range: [0.6, 1.4]                       # Saturation adjustment range (wider for variety).
+      hue_range: [-0.15, 0.15]                           # Hue adjustment range (wider for variety).
 
     # Albumentations Augmentations
     albumentations_settings:
       #[x_min,y_min,x_max,y_max]
       full_img_shadow_roi: [0.0, 0.5, 1.0, 1.0]          # Region for shadow placement.
-      full_img_num_shadows_limit: [2, 3]             # Min-max number of shadows.
-      full_img_shadow_dimension: 7                  # Shadow polygon complexity
-      full_img_shadow_intensity_range: [0.1, 0.34]    # Shadow polygon complexity.
-      full_img_shadow_transform_probability: 0.4     # Probability of shadow augmentation.
+      full_img_num_shadows_limit: [2, 3]                 # Min-max number of shadows.
+      full_img_shadow_dimension: 7                       # Shadow polygon complexity
+      full_img_shadow_intensity_range: [0.1, 0.34]       # Shadow polygon complexity.
+      full_img_shadow_transform_probability: 0.4         # Probability of shadow augmentation.
 
-      cropped_img_shadow_roi: [0.0, 0.0, 1.0, 1.0]     # Region for shadow placement.
-      cropped_img_num_shadows_limit: [1, 2]             # Min-max number of shadows.
-      cropped_img_shadow_dimension: 6                   # Shadow polygon complexity
-      cropped_img_shadow_intensity_range: [0.1, 0.5]    # Shadow polygon complexity.
+      cropped_img_shadow_roi: [0.0, 0.0, 1.0, 1.0]       # Region for shadow placement.
+      cropped_img_num_shadows_limit: [1, 2]              # Min-max number of shadows.
+      cropped_img_shadow_dimension: 6                    # Shadow polygon complexity
+      cropped_img_shadow_intensity_range: [0.1, 0.5]     # Shadow polygon complexity.
       cropped_img_shadow_transform_probability: 0.35     # Probability of shadow augmentation.
 
-      gamma_probability: 0.9                # Probability of gamma adjustment.
-      gamma_limit: [50, 150]                # Gamma adjustment range (wider for variety).
-      sigmoid_probability: 0.3              # Probability of sigmoid contrast.
-      sigmoid_limit: [3, 8]                 # Sigmoid slope range.
-      contrast_brightness_probability: 0.0  # Probability of brightness/contrast adjustment.
-      brightness_range: [1, 1]             # Brightness adjustment range (wider for variety).
-      contrast_range: [1, 1]               # Contrast adjustment range (wider for variety).
-      clahe_probability: 0.5                # Probability of CLAHE enhancement.
-      contrast_tile_grid_size: [8, 8]       # Tile size for CLAHE.
-      contrast_clip_limit: 4.0              # CLAHE contrast limit (stronger enhancement).
-      motion_blur_probability: 0.3          # Probability of motion blur (increased for robustness).
-      motion_blur_limit: [3, 11]            # Motion blur kernel range.
+      gamma_probability: 0.9                             # Probability of gamma adjustment.
+      gamma_limit: [50, 150]                             # Gamma adjustment range (wider for variety).
+      sigmoid_probability: 0.3                           # Probability of sigmoid contrast.
+      sigmoid_limit: [3, 8]                              # Sigmoid slope range.
+      contrast_brightness_probability: 0.0               # Probability of brightness/contrast adjustment.
+      brightness_range: [1, 1]                           # Brightness adjustment range (wider for variety).
+      contrast_range: [1, 1]                             # Contrast adjustment range (wider for variety).
+      clahe_probability: 0.5                             # Probability of CLAHE enhancement.
+      contrast_tile_grid_size: [8, 8]                    # Tile size for CLAHE.
+      contrast_clip_limit: 4.0                           # CLAHE contrast limit (stronger enhancement).
+      motion_blur_probability: 0.3                       # Probability of motion blur (increased for robustness).
+      motion_blur_limit: [3, 11]                         # Motion blur kernel range.
 
-      full_img_dropout_probability: 0.5              # Probability of dropout (increased for robustness).
-      full_img_dropout_holes_range: [4, 15]          # Number of dropout holes.
-      full_img_dropout_height_range: [10, 40]        # Height range of dropout regions
-      full_img_dropout_width_range: [10, 50]         # Width range of dropout regions.
-      full_img_dropout_fill_value_range: [0, 255]    # Fill value range for dropout.
-      full_img_dropout_mask_fill_value: 0            # Mask fill value for dropout.
-      full_img_dropout_roi: [0, 0.5, 1, 1]           # Roi for dropout
+      full_img_dropout_probability: 0.5                  # Probability of dropout (increased for robustness).
+      full_img_dropout_holes_range: [4, 15]              # Number of dropout holes.
+      full_img_dropout_height_range: [10, 40]            # Height range of dropout regions
+      full_img_dropout_width_range: [10, 50]             # Width range of dropout regions.
+      full_img_dropout_fill_value_range: [0, 255]        # Fill value range for dropout.
+      full_img_dropout_mask_fill_value: 0                # Mask fill value for dropout.
+      full_img_dropout_roi: [0, 0.5, 1, 1]               # Roi for dropout
 
-      crop_img_dropout_probability: 0.4              # Probability of dropout (increased for robustness).
-      crop_img_dropout_holes_range: [2, 6]          # Number of dropout holes.
-      crop_img_dropout_height_range: [20, 60]      # Height range of dropout regions
-      crop_img_dropout_width_range: [30, 80]       # Width range of dropout regions.
-      crop_img_dropout_fill_value_range: [0, 255]    # Fill value range for dropout.
-      crop_img_dropout_mask_fill_value: 0            # Mask fill value for dropout.
-      crop_img_dropout_roi: [0, 0, 1, 1]             # Roi for dropout
+      crop_img_dropout_probability: 0.4                  # Probability of dropout (increased for robustness).
+      crop_img_dropout_holes_range: [2, 6]               # Number of dropout holes.
+      crop_img_dropout_height_range: [20, 60]            # Height range of dropout regions
+      crop_img_dropout_width_range: [30, 80]             # Width range of dropout regions.
+      crop_img_dropout_fill_value_range: [0, 255]        # Fill value range for dropout.
+      crop_img_dropout_mask_fill_value: 0                # Mask fill value for dropout.
+      crop_img_dropout_roi: [0, 0, 1, 1]                 # Roi for dropout
 
       crop_probability: 0.2
       max_part_shift: [0.3, 0.3]
@@ -160,7 +161,7 @@ data:
     # Noise Augmentation
     noise_settings:
       noise_type: gaussian                  # Noise type. (gaussian/uniform).
-      noise_level_range: [0.0, 0.1]        # Noise intensity range (light noise).
+      noise_level_range: [0.0, 0.1]         # Noise intensity range (light noise).
 
     # Geometric Transformations
     transformations:
@@ -169,33 +170,33 @@ data:
     # Rotation Settings
     rotation_settings:
       background_rotation: true             # Randomly rotate background images.
-      background_rotation_angle: [-15, 15]   # Background rotation range (degrees, moderate).
+      background_rotation_angle: [-15, 15]  # Background rotation range (degrees, moderate).
 
     # Color Adjustments
     color_jitter_settings:
       jitter_probability: 0.6               # Probability of color jitter (moderate).
-      saturation_range: [0.7, 1.3]        # Saturation adjustment range (narrower for naturalness).
-      hue_range: [-0.1, 0.1]            # Hue adjustment range (narrower for naturalness).
+      saturation_range: [0.7, 1.3]          # Saturation adjustment range (narrower for naturalness).
+      hue_range: [-0.1, 0.1]                # Hue adjustment range (narrower for naturalness).
 
     albumentations_settings:
-      shadow_roi: [0.0, 0.0, 1.0, 1.0]         # Region for shadow placement.
+      shadow_roi: [0.0, 0.0, 1.0, 1.0]      # Region for shadow placement.
       num_shadows_limit: [1, 2]             # Min-max number of shadows (moderate).
       shadow_dimension: 6                   # Shadow polygon complexity (simpler).
-      shadow_intensity_range: [0.1, 0.25]    # Shadow intensity range (lighter shadows).
+      shadow_intensity_range: [0.1, 0.25]   # Shadow intensity range (lighter shadows).
       shadow_transform_probability: 0.25    # Probability of shadow augmentation (moderate).
       gamma_probability: 0.6                # Probability of gamma adjustment.
       gamma_limit: [70, 130]                # Gamma adjustment range (moderate).
       sigmoid_probability: 0.2              # Probability of sigmoid contrast (moderate).
-      sigmoid_limit: [4.5, 6.5]                # Sigmoid slope range (moderate).
+      sigmoid_limit: [4.5, 6.5]             # Sigmoid slope range (moderate).
       contrast_brightness_probability: 0.5  # Probability of brightness/contrast adjustment.
-      brightness_range: [1, 1]          # Brightness adjustment range (narrower for naturalness).
-      contrast_range: [1, 1]            # Contrast adjustment range (narrower for naturalness).
+      brightness_range: [1, 1]              # Brightness adjustment range (narrower for naturalness).
+      contrast_range: [1, 1]                # Contrast adjustment range (narrower for naturalness).
       clahe_probability: 0.3                # Probability of CLAHE enhancement.
       contrast_tile_grid_size: [8, 8]       # Tile size for CLAHE.
       contrast_clip_limit: 3.0              # CLAHE contrast limit (moderate enhancement).
-      motion_blur_probability: 0.15          # Probability of motion blur (moderate).
+      motion_blur_probability: 0.15         # Probability of motion blur (moderate).
       motion_blur_limit: [3, 7]             # Motion blur kernel range (moderate).
-      dropout_probability: 0.35              # Probability of dropout (moderate).
+      dropout_probability: 0.35             # Probability of dropout (moderate).
       dropout_holes_range: [4, 8]           # Number of dropout holes (moderate).
       dropout_height_range: [15, 40]        # Height range of dropout regions.
       dropout_width_range: [15, 50]         # Width range of dropout regions.
@@ -207,55 +208,51 @@ data:
   # Dataset Scaling
   # ----------------------
   dataset_settings:
-    scale_factor: 2  # Scaling factor applied during dataset preprocessing.
+    scale_factor: 2                         # Scaling factor applied during dataset preprocessing.
 
 # ======================
 # Model Configuration
 # ======================
 model:
-  id: 0                 # Unique identifier for the model.
-  name:                  # Optional: Custom model name.
-  weights:               # Optional: Path to pretrained weights.
-  create_new_model: false  # If True, initializes a new model; otherwise, loads an existing one.
-  saves_count: 0         # Number of model checkpoints to save (0 = save every epoch).
-  directory: train_results  # Directory where model training results are stored.
+  id: 2                                     # Unique identifier for the model.
+  name:                                     # Optional: Custom model name.
+  weights:                                  # Optional: Path to pretrained weights.
+  create_new_model: false                   # If True, initializes a new model; otherwise, loads an existing one.
+  saves_count: 0                            # Number of model checkpoints to save (0 = save every epoch).
+  directory: train_results                  # Directory where model training results are stored.
 
 
 # ======================
 # Training Parameters
 # ======================
 train:
-  synthetic_mask_pre_calculation_mode: dataloader  # Defines how masks are handled: loss-based or via dataloader.
-  natural_data_mask_saving:             # Placeholder for natural data mask storage configuration.
+  synthetic_mask_pre_calculation_mode: dataloader     # Defines how masks are handled: loss-based or via dataloader.
+  natural_data_mask_saving:                           # Placeholder for natural data mask storage configuration.
   natural_data_mask_pre_calculation_mode: dataloader  # Defines mask computation mode for natural images.
-  lr: -3         # Learning rate expressed as 10^N (e.g., 10^-3 = 0.001).
+  lr: -4                                              # Learning rate expressed as 10^N (e.g., 10^-3 = 0.001).
   enable_lr_reset: true
   scheduler_available: true
-  epoch: 80            # Total number of training epochs.
-  workers: 6      # Number of worker threads used for data loading.
-  batch: 12            # Batch size for training.
-  n_accum: 8          # Number of steps for gradient accumulation.
+  epoch: 80                                            # Total number of training epochs.
+  workers: 6                                           # Number of worker threads used for data loading.
+  batch: 12                                            # Batch size for training.
+  n_accum: 8                                           # Number of steps for gradient accumulation.
 
-  alpha: 0.00025
-  beta: 3.0
-  gamma: 10.0
-#  alpha: 0.0023  #  BoundaryLossCalculator
-#  beta: 32.0 #  BlurBoundaryLoss
-#
-#  gamma: 5.0
-##
-  delta: 1.6 #  DiceLoss
-  eta: 11.0 #  Focal_loss
-  sigma: 10.0
+  alpha: 0.0003                                        # Boundary_Loss
+  beta: 3.0                                            # Blur_Boundary_Loss
+  gamma: 10.0                                          # Binary_cross_entropy
+  delta: 1.6                                           # Dice_Loss
+  eta: 11.0                                            # Focal_loss
+  sigma: 1.0                                           # Generalized_Dice_Loss
+  epsilon: 1.2                                         # Tversky_Loss
 
 
 # ======================
 # Validation Settings
 # ======================
 val:
-  mini_batch: 8        # Batch size for validation.
-  workers: 4          # Number of worker threads for validation.
-  every: 1             # Number of epochs between validation runs.
+  mini_batch: 8                                        # Batch size for validation.
+  workers: 4                                           # Number of worker threads for validation.
+  every: 1                                             # Number of epochs between validation runs.
 
 # ======================
 # Logging & Visualization

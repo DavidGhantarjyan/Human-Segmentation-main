@@ -5,12 +5,37 @@ import random
 
 # Import configuration parameters from train_args_parser, e.g. images_per_combination, result_dir, etc.
 def list_subfolders(path):
+    """
+        Lists subdirectories in the given path.
+
+        Args:
+            path (str): Directory path.
+
+        Returns:
+            list: List of subdirectory names.
+
+        Raises:
+            ValueError: If no subdirectories are found.
+        """
     folders = [f for f in os.listdir(path) if os.path.isdir(os.path.join(path, f))]
     if not folders:
         raise ValueError(f"No subfolders in {path}")
     return folders
 
 def list_files(path, exts):
+    """
+        Lists files with specified extensions in the given path.
+
+        Args:
+            path (str): Directory path.
+            exts (tuple): File extensions to filter (e.g., ('.png', '.jpg')).
+
+        Returns:
+            list: List of filenames.
+
+        Raises:
+            ValueError: If no files with specified extensions are found.
+        """
     files = [f for f in os.listdir(path)
              if os.path.isfile(os.path.join(path, f))
              and f.lower().endswith(exts)]
@@ -19,6 +44,16 @@ def list_files(path, exts):
     return files
 
 def pick_random_path(path, exts):
+    """
+        Selects a random file with specified extensions from the given path.
+
+        Args:
+            path (str): Directory path.
+            exts (tuple): File extensions to filter.
+
+        Returns:
+            str: Absolute path to a random file.
+        """
     files = list_files(path, exts)
     return os.path.join(path, random.choice(files))
 
@@ -26,14 +61,21 @@ def pick_random_path(path, exts):
 # FileManager Class
 ###############################################################################
 class FileManager:
+    """
+        Manages file operations for synthetic data generation, including directory creation,
+        file listing, and image/text saving.
+        """
     @staticmethod
     def get_amount(obj, bg):
         """
-        Calculates the total number of images generated based on the number of objects and backgrounds.
+        Calculates the total number of images generated based on object and background counts.
 
-        :param obj: List of object images.
-        :param bg: List of background images.
-        :return: Total number of generated images (integer).
+        Args:
+            obj (list): List of object image paths.
+            bg (list): List of background image paths.
+
+        Returns:
+            int: Total number of generated images (images_per_combination * len(obj) * len(bg)).
         """
         # Multiply images_per_combination (a global parameter) by the number of objects and backgrounds.
 
@@ -42,9 +84,10 @@ class FileManager:
     @staticmethod
     def get_new_epoch_path():
         """
-               Determines a new unique epoch directory name for saving generated results.
+        Creates a unique epoch directory for saving generated results.
 
-               :return: Path to a new epoch directory, ensuring no name conflicts in the result directory.
+        Returns:
+            str: Path to a new epoch directory (e.g., 'result_dir/epoch0/').
         """
         m = 0
         p = os.listdir(result_dir)
@@ -61,40 +104,41 @@ class FileManager:
         ep_dir = os.path.join(result_dir, ep_dir) + os.sep
         return ep_dir
 
-    # @staticmethod
-    # def get_objects(objects_dir):
-    #     """
-    #             Loads all object images from the specified objects directory.
-    #
-    #             :return: List of object images loaded via cv2.imread with unchanged flags (to preserve alpha channel).
-    #     """
-    #     obj_images = []
-    #     for name in os.listdir(objects_dir):
-    #         path = os.path.join(objects_dir, name)
-    #         # Use cv2.IMREAD_UNCHANGED (-1) to load image along with alpha channel if present.
-    #         obj_images.append(cv2.imread(path, -1))
-    #     return obj_images
     @staticmethod
     def get_object_paths(objects_dir):
         """
-        Collects paths to all object images in the specified directory.
+        Retrieves paths to all object images in the specified directory.
 
-        :return: List of absolute paths to object images.
+        Args:
+            objects_dir (str): Directory containing object images.
+
+        Returns:
+            list: List of absolute paths to object images.
         """
         return [os.path.join(objects_dir, name) for name in os.listdir(objects_dir)]
 
     @staticmethod
     def save_as_txt(text, path):
         """
-               Appends the given text to a text file at the specified path.
+        Appends text to a file at the specified path.
 
-               :param text: Text to save.
-               :param path: File path (without extension) to which text is appended.
+        Args:
+            text (str): Text to save.
+            path (str): File path (without .txt extension).
         """
         with open(path + ".txt", 'a') as f:
             f.write(text + '\n')
     @staticmethod
     def get_random_background(base_dir):
+        """
+        Selects a random background image from a subdirectory.
+
+        Args:
+            base_dir (str): Base directory with background subfolders.
+
+        Returns:
+            tuple: (filename, full_path) of the selected background image.
+        """
         folder = random.choice(list_subfolders(base_dir))
         folder_path = os.path.join(base_dir, folder)
 
@@ -105,6 +149,19 @@ class FileManager:
 
     @staticmethod
     def get_random_tiktok_image_and_mask(base_dir):
+        """
+        Selects a random TikTok-style image and its corresponding mask.
+
+        Args:
+            base_dir (str): Base directory with subfolders containing 'images' and 'masks'.
+
+        Returns:
+            tuple: (image_path, mask_path) of the selected image and mask.
+
+        Raises:
+            ValueError: If 'images' or 'masks' subdirectories are missing.
+            FileNotFoundError: If no mask is found for the selected image.
+        """
         folder = random.choice(list_subfolders(base_dir))
         folder_path = os.path.join(base_dir, folder)
 
@@ -127,6 +184,18 @@ class FileManager:
 
     @staticmethod
     def get_random_fgr_and_mask(base_dir):
+        """
+        Selects a random foreground image and its alpha mask from subdirectories.
+
+        Args:
+            base_dir (str): Base directory with 'fgr' and 'pha' subdirectories.
+
+        Returns:
+            tuple: (fgr_path, pha_path) of the selected foreground and alpha mask.
+
+        Raises:
+            FileNotFoundError: If no alpha mask is found for the foreground.
+        """
         fgr_dir = os.path.join(base_dir, "fgr")
         pha_dir = os.path.join(base_dir, "pha")
 
@@ -144,100 +213,19 @@ class FileManager:
             raise FileNotFoundError(f"No alpha mask '{pha_path}' found for foreground '{fgr_path}'")
 
         return fgr_path, pha_path
-    # def get_random_background(base_dir):
-    #     subfolders = [f for f in os.listdir(base_dir)
-    #                   if os.path.isdir(os.path.join(base_dir, f))]
-    #     if not subfolders:
-    #         raise ValueError("No subfolders with backgrounds found in the directory!")
-    #
-    #     random_folder = random.choice(subfolders)
-    #     random_folder_path = os.path.join(base_dir, random_folder)
-    #
-    #     files = [f for f in os.listdir(random_folder_path)
-    #              if os.path.isfile(os.path.join(random_folder_path, f))
-    #              and f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-    #
-    #     if not files:
-    #         raise ValueError(f"No images found in the folder {random_folder}!")
-    #
-    #     random_image = random.choice(files)
-    #     random_image_path = os.path.join(random_folder_path, random_image)
-    #
-    #     return random_image ,random_image_path
-
-    # @staticmethod
-    # def get_random_tiktok_image_and_mask(tiktok_dataset_path):
-    #     subfolders = [f for f in os.listdir(tiktok_dataset_path)
-    #                   if os.path.isdir(os.path.join(tiktok_dataset_path, f))]
-    #     if not subfolders:
-    #         raise ValueError("В TikTok-датасете нет подпапок!")
-    #     random_folder = random.choice(subfolders)
-    #     random_folder_path = os.path.join(tiktok_dataset_path, random_folder)
-    #
-    #     images_path = os.path.join(random_folder_path, "images")
-    #     masks_path = os.path.join(random_folder_path, "masks")
-    #
-    #     if not os.path.exists(images_path) or not os.path.exists(masks_path):
-    #         raise ValueError(f"В папке {random_folder} отсутствуют папки images или masks!")
-    #
-    #     image_files = [f for f in os.listdir(images_path)
-    #                    if os.path.isfile(os.path.join(images_path, f))
-    #                    and f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-    #
-    #     if not image_files:
-    #         raise ValueError(f"В папке {images_path} нет изображений!")
-    #
-    #     random_image = random.choice(image_files)
-    #     random_image_path = os.path.join(images_path, random_image)
-    #
-    #     mask_filename = os.path.splitext(random_image)[0] + ".png"
-    #     random_mask_path = os.path.join(masks_path, mask_filename)
-    #
-    #     if not os.path.exists(random_mask_path):
-    #         raise ValueError(f"Для изображения {random_image} не найдена маска {mask_filename}!")
-    #
-    #     return random_image_path, random_mask_path
-    #
-    # @staticmethod
-    # def get_random_fgr_and_mask(base_dir):
-    #     fgr_dir = os.path.join(base_dir, 'fgr')
-    #     pha_dir = os.path.join(base_dir, 'pha')
-    #
-    #     # Sorted (0000–0483)
-    #     sub_dirs = sorted(os.listdir(fgr_dir))
-    #     sub_dirs = [d for d in sub_dirs if os.path.isdir(os.path.join(fgr_dir, d))]
-    #
-    #     chosen_subdir = random.choice(sub_dirs)
-    #
-    #     fgr_subdir_path = os.path.join(fgr_dir, chosen_subdir)
-    #     pha_subdir_path = os.path.join(pha_dir, chosen_subdir)
-    #
-    #     fgr_files = [f for f in os.listdir(fgr_subdir_path) if f.endswith('.jpg')]
-    #     if not fgr_files:
-    #         raise ValueError(f"Folder {chosen_subdir} is empty!")
-    #
-    #     chosen_file = random.choice(fgr_files)
-    #
-    #     fgr_path = os.path.join(fgr_subdir_path, chosen_file)
-    #     pha_path = os.path.join(pha_subdir_path,
-    #                             os.path.splitext(chosen_file)[0] + '.jpg')
-    #
-    #     if not os.path.exists(pha_path):
-    #         raise FileNotFoundError(f"Mask {pha_path} wasn't found for {fgr_path}")
-    #
-    #     return fgr_path, pha_path
 
     @staticmethod
     def save_as_grayscale_img(img, path):
         """
-               Saves a grayscale image to disk.
+        Saves a grayscale image to disk, ensuring uint8 format.
 
-               If the image is in BGR format, it takes only one channel. It also ensures that the image
-               data type is uint8 and values are clipped between 0 and 255.
+        Args:
+            img (np.ndarray): Image array (single-channel or 3-channel).
+            path (str): Destination file path.
 
-               :param img: Image (as NumPy array) to be saved.
-               :param path: Destination file path.
-               :raises IOError: If the image fails to save.
+        Raises:
+            IOError: If the image fails to save.
+            ValueError: If the image has invalid dimensions.
         """
         # If image has 3 channels, select the first channel to convert it to grayscale
         if img.ndim == 3 and img.shape[2] == 3:
@@ -254,16 +242,20 @@ class FileManager:
 # ImageUtils Class
 ###############################################################################
 class ImageUtils:
+    """
+    Provides utility functions for image processing, including scaling, flipping,
+    blurring, noise addition, rotation, and color adjustments.
+    """
     @staticmethod
     def get_rate(rate):
         """
-                Determines a random rate value based on input.
+        Generates a random value based on the input rate.
 
-                :param rate: Could be a tuple, list, or a fixed value.
-                             - If tuple: returns a random float between the two values.
-                             - If list: returns a random choice from the list.
-                             - Otherwise, returns the given value.
-                :return: A float or the original rate.
+        Args:
+            rate (tuple, list, or float): If tuple, random float in range; if list, random choice; else, returns rate.
+
+        Returns:
+            float: Random or fixed rate value.
         """
         if isinstance(rate, tuple):
             return np.random.rand() * (rate[1] - rate[0]) + rate[0]
@@ -275,11 +267,14 @@ class ImageUtils:
     @staticmethod
     def flip_img(img, flip_chance):
         """
-        Flips the image horizontally based on a given probability.
+        Flips the image horizontally with a given probability.
 
-        :param img: Input image as a NumPy array.
-        :param flip_chance: Probability threshold for performing a flip.
-        :return: Flipped image if random chance passes; otherwise, original image.
+        Args:
+            img (np.ndarray): Input image.
+            flip_chance (float): Probability of flipping (0 to 1).
+
+        Returns:
+            np.ndarray: Flipped or original image.
         """
         if np.random.rand() < flip_chance:
             return img
@@ -288,14 +283,15 @@ class ImageUtils:
     @staticmethod
     def add_alpha_blur(alpha, alpha_blur_type, alpha_blur_kernel_range):
         """
-        Applies blur to the alpha channel of an image.
+        Applies blur to the alpha channel.
 
-        Currently supports Gaussian blur.
+        Args:
+            alpha (np.ndarray): Alpha channel (single-channel, float32 [0, 1]).
+            alpha_blur_type (str): Blur type (e.g., 'GaussianBlur').
+            alpha_blur_kernel_range (tuple): Min and max kernel sizes.
 
-        :param alpha: Alpha channel as a single-channel image (NumPy array).
-        :param alpha_blur_type: Type of blur (e.g., 'GaussianBlur').
-        :param alpha_blur_kernel_range: Tuple indicating min and max kernel size.
-        :return: Blurred alpha channel.
+        Returns:
+            np.ndarray: Blurred alpha channel.
         """
         if alpha_blur_type == 'GaussianBlur':
             k_min, k_max = alpha_blur_kernel_range
@@ -308,14 +304,17 @@ class ImageUtils:
     @staticmethod
     def add_background_blur(img, label, bg_blur_chance, bg_blur_type, bg_blur_kernel_range):
         """
-        Applies blur to the background image while preserving regions where label equals 1.
+        Applies blur to the background where label is not 1.
 
-        :param img: Background image as a NumPy array.
-        :param label: Label or segmentation mask (used to decide which areas to blur).
-        :param bg_blur_chance: Probability threshold to apply the blur.
-        :param bg_blur_type: Type of blur to apply (e.g., 'GaussianBlur').
-        :param bg_blur_kernel_range: Tuple of kernel size range for the blur.
-        :return: Image with selective background blur applied.
+        Args:
+            img (np.ndarray): Background image.
+            label (np.ndarray): Segmentation mask (1 for foreground, 0 for background).
+            bg_blur_chance (float): Probability of applying blur.
+            bg_blur_type (str): Blur type (e.g., 'GaussianBlur').
+            bg_blur_kernel_range (tuple): Min and max kernel sizes.
+
+        Returns:
+            np.ndarray: Image with blurred background.
         """
         blured_img = img
         if bg_blur_chance:
@@ -333,11 +332,15 @@ class ImageUtils:
     @staticmethod
     def add_noise(img, noise_rate, noise_type):
         """
-        Adds random noise to an image. The noise can be uniform or Gaussian.
+        Adds uniform or Gaussian noise to the image.
 
-        :param img: Input image as a NumPy array.
-        :param noise_rate: Rate parameter (can be a tuple/list or fixed value) defining noise intensity.
-        :return: Noisy image.
+        Args:
+            img (np.ndarray): Input image.
+            noise_rate (float or tuple): Noise intensity or range.
+            noise_type (str): Noise type ('uniform' or 'gaussian').
+
+        Returns:
+            np.ndarray: Noisy image (uint8).
         """
         noise_rate = ImageUtils.get_rate(noise_rate)
         arg = int(noise_rate * 127)
@@ -353,36 +356,20 @@ class ImageUtils:
         return np.clip(noisy_img, 0, 255).astype(np.uint8)
         # return np.clip(img, arg, 255 - arg) + noise
 
-    # @staticmethod
-    # def scale_img(img, scale_rate):
-    #     """
-    #     Scales the image by a given scale factor.
-    #
-    #     :param img: Input image as a NumPy array.
-    #     :param scale_rate: Scaling factor (can be generated randomly).
-    #     :return: Resized image.
-    #     :raises ValueError: If scale_rate is zero.
-    #     """
-    #     scale_rate = ImageUtils.get_rate(scale_rate)
-    #     if scale_rate == 1:
-    #
-    #         return img
-    #     elif scale_rate == 0:
-    #         raise ValueError("scale_rate cannot be zero")
-    #     h, w, _ = img.shape
-    #     scaled_img = cv2.resize(img, (int(w * scale_rate), int(h * scale_rate)))
-    #
-    #     return scaled_img
-
     @staticmethod
     def scale_img(img, scale_rate):
         """
-        Scales the image by a given scale factor.
+        Scales the image by a given factor, preserving alpha channel if present.
 
-        :param img: Input image as a NumPy array.
-        :param scale_rate: Scaling factor (can be generated randomly).
-        :return: Resized image.
-        :raises ValueError: If scale_rate is zero.
+        Args:
+            img (np.ndarray): Input image (3 or 4 channels).
+            scale_rate (float or tuple): Scaling factor or range.
+
+        Returns:
+            np.ndarray: Scaled image.
+
+        Raises:
+            ValueError: If scale_rate is zero or image has invalid channels.
         """
         scale_rate = ImageUtils.get_rate(scale_rate)
         if scale_rate == 1:
@@ -404,15 +391,18 @@ class ImageUtils:
     @staticmethod
     def calculate_out_of_bounds_percentage(x, y, bw, bh, ow, oh):
         """
-        Calculates the percentage of the object that lies out of the background bounds.
+        Calculates the percentage of the object outside the background bounds.
 
-        :param x: X-coordinate of the object's placement.
-        :param y: Y-coordinate of the object's placement.
-        :param bw: Width of the background.
-        :param bh: Height of the background.
-        :param ow: Original width of the object.
-        :param oh: Original height of the object.
-        :return: Tuple (percent_x, percent_y) representing the out-of-bounds percentage in each dimension.
+        Args:
+            x (int): X-coordinate of object placement.
+            y (int): Y-coordinate of object placement.
+            bw (int): Background width.
+            bh (int): Background height.
+            ow (int): Object width.
+            oh (int): Object height.
+
+        Returns:
+            tuple: (percent_x, percent_y) of out-of-bounds percentages.
         """
         if x < 0:
             percent_x = abs(x) / ow
@@ -432,15 +422,18 @@ class ImageUtils:
     @staticmethod
     def get_coord_info(x, y, h, w, bh, bw):
         """
-        Generates a string containing normalized coordinates and dimensions.
+        Generates normalized coordinates and dimensions for classification output.
 
-        :param x: X-coordinate of the object placement.
-        :param y: Y-coordinate of the object placement.
-        :param h: Height of the object.
-        :param w: Width of the object.
-        :param bh: Height of the background.
-        :param bw: Width of the background.
-        :return: A string with normalized center coordinates and size: 'cx cy ax ay'.
+        Args:
+            x (int): X-coordinate of object placement.
+            y (int): Y-coordinate of object placement.
+            h (int): Object height.
+            w (int): Object width.
+            bh (int): Background height.
+            bw (int): Background width.
+
+        Returns:
+            str: 'cx cy ax ay' with normalized center coordinates and sizes.
         """
         cx = str((x + w / 2) / bw)
         cy = str((y + h / 2) / bh)
@@ -451,12 +444,17 @@ class ImageUtils:
     @staticmethod
     def image_rotation(img, angle_rate,borderMode = None, interpolation_type=cv2.INTER_LINEAR, save_original_shape=True):
         """
-        Rotates an image by a given angle.
+        Rotates the image by a given or random angle.
 
-        :param img: Input image as a NumPy array.
-        :param angle_rate: Rotation angle or range (if tuple/list, a random angle is chosen).
-        :param interpolation_type: Interpolation flag for cv2.warpAffine.
-        :return: Tuple (angle, rotated_img), where 'angle' is the used rotation angle.
+        Args:
+            img (np.ndarray): Input image.
+            angle_rate (float or tuple): Rotation angle or range (degrees).
+            borderMode (int, optional): Border mode for cv2.warpAffine.
+            interpolation_type (int): Interpolation flag (default cv2.INTER_LINEAR).
+            save_original_shape (bool): Keep original dimensions if True.
+
+        Returns:
+            tuple: (angle, rotated_img).
         """
         h, w = img.shape[:2]
         center = (w // 2, h // 2)
@@ -498,15 +496,22 @@ class ImageUtils:
     # def apply_color_jitter(image, contrast_brightness_probability= 0.4, brightness_range = (0.7,1.3), contrast_range = (0.7,1.3),
     #                        saturation_range=(0.7, 1.5), hue_range=(-0.1, 0.1), jitter_probability=0.8):
         """
-        Applies color jitter to the image, adjusting brightness, contrast, saturation, and hue.
+        Applies color jitter to adjust brightness, contrast, saturation, and hue.
 
-        :param image: Input image as a NumPy array.
-        :param brightness_range: Tuple specifying the range for brightness adjustment.
-        :param contrast_range: Tuple specifying the range for contrast adjustment.
-        :param saturation_range: Tuple specifying the range for saturation adjustment.
-        :param hue_range: Tuple specifying the range for hue adjustment.
-        :param jitter_probability: Probability threshold for applying jitter.
-        :return: Color jittered image.
+        Args:
+            image (np.ndarray): Input image (BGR).
+            contrast_brightness_probability (float): Probability of brightness/contrast adjustment.
+            brightness_range (tuple): Range for brightness factor.
+            contrast_range (tuple): Range for contrast factor.
+            saturation_range (tuple): Range for saturation factor.
+            hue_range (tuple): Range for hue shift.
+            jitter_probability (float): Probability of saturation/hue adjustment.
+
+        Returns:
+            np.ndarray: Jittered image (BGR).
+
+        Raises:
+            ValueError: If image is not 3-channel BGR.
         """
         if np.random.rand() >= max(jitter_probability, contrast_brightness_probability):
             return image
@@ -540,6 +545,16 @@ class ImageUtils:
 
     @staticmethod
     def sigmoid_contrast(image, k):
+        """
+        Applies sigmoid contrast adjustment to the image.
+
+        Args:
+            image (np.ndarray): Input image.
+            k_range (tuple): Range for sigmoid steepness parameter k.
+
+        Returns:
+            np.ndarray: Adjusted image (uint8).
+        """
         myu = 0.5
         image = image / 255.0
         image = 1 / (1 + np.exp(-k * (image - myu)))
@@ -550,14 +565,23 @@ class ImageUtils:
 # ImageGeneratorUtils Class
 ###############################################################################
 class ImageGeneratorUtils:
+    """
+        Generates synthetic images by overlaying objects onto backgrounds with transformations.
+    """
     @staticmethod
     def generate_point(bg_img, obj_img):
         """
-        Determines the placement coordinates and scales the object image for overlaying onto the background.
+        Determines placement coordinates and scales the object for overlaying.
 
-        :param bg_img: Background image as a NumPy array.
-        :param obj_img: Object image as a NumPy array.
-        :return: A tuple (x, y, scaled_obj) where (x, y) are the top-left coordinates and scaled_obj is the resized object.
+        Args:
+            bg_img (np.ndarray): Background image.
+            obj_img (np.ndarray): Object image (3 or 4 channels).
+
+        Returns:
+            tuple: (x, y, scaled_obj) with placement coordinates and scaled object.
+
+        Raises:
+            ValueError: If placement_distribution is invalid or image channels are incorrect.
         """
         oh, ow = obj_img.shape[:2]  # Object original dimensions.
         bh, bw = bg_img.shape[:2]  # Background dimensions.
@@ -649,15 +673,18 @@ class ImageGeneratorUtils:
     @staticmethod
     def generate_img(bg_img, generate_obj_point, angle):
         """
-        Overlays a processed object image onto the background at a given coordinate.
+        Overlays a transformed object onto the background.
 
-        Applies optional flipping and rotation to the object, blurs the alpha channel, and then overlays
-        it on the background image.
+        Args:
+            bg_img (np.ndarray): Background image.
+            generate_obj_point (tuple): (x, y, scaled_obj) from generate_point.
+            angle (float): Rotation angle for the object.
 
-        :param bg_img: Background image as a NumPy array.
-        :param generate_obj_point: Tuple (x, y, scaled_obj) from generate_point.
-        :param angle: Rotation angle to apply to the object.
-        :return: Tuple (combined_img, output) where output is either coordinate information or a segmentation mask.
+        Returns:
+            tuple: (combined_img, output) where output is coordinates (classification) or mask (segmentation).
+
+        Raises:
+            ValueError: If output_format is invalid.
         """
         x, y, scaled_obj = generate_obj_point
         # Optionally flip the object image horizontally.
@@ -692,16 +719,20 @@ class ImageGeneratorUtils:
     @staticmethod
     def put(x, y, obj_img, bg_img):
         """
-        Pastes an object image (with potential alpha channel) onto a background image at position (x, y).
+        Pastes an object onto the background, blending with alpha if present.
 
-        Handles out-of-bound placements by clipping and blends the object with the background using the alpha mask.
+        Args:
+            x (int): X-coordinate for placement.
+            y (int): Y-coordinate for placement.
+            obj_img (np.ndarray): Object image (3 or 4 channels).
+            bg_img (np.ndarray): Background image (3 channels).
 
-        :param x: X-coordinate for object placement.
-        :param y: Y-coordinate for object placement.
-        :param obj_img: Object image with an alpha channel (if present).
-        :param bg_img: Background image.
-        :return: Tuple (result_img, alpha_mask) where alpha_mask represents the pasted region's transparency.
-        :raises Exception: If the placement is completely out-of-bounds.
+        Returns:
+            tuple: (result_img, alpha_mask).
+
+        Raises:
+            Exception: If placement is completely out-of-bounds.
+            ValueError: If image channels are incompatible.
         """
         bh, bw, c = bg_img.shape
         h, w = obj_img.shape[:2]
@@ -728,20 +759,6 @@ class ImageGeneratorUtils:
 
         bg_alpha = None
         # If the object image has an alpha channel, blend using the alpha mask.
-        # if obj_img.shape[2] == 4:
-        #     alpha = obj_img[fh:th, fw:tw, -1] / 255.0
-        #     alpha_n = np.array([alpha] * 3).transpose((1, 2, 0))
-        #     alpha_t = 1.0 - alpha_n
-        #     # Blend the background and object images.
-        #     bg[max(0, y):min(y + h, bh), max(0, x):min(x + w, bw)] = paste * alpha_t + obj * alpha_n
-        #     # Create an alpha mask for the pasted region.
-        #     bg_alpha = np.zeros((bh, bw, c), dtype=np.uint8)
-        #     bg_alpha[max(0, y):min(y + h, bh), max(0, x):min(x + w, bw)] = alpha_n * 255
-        # else:
-        #     # If no alpha channel, directly replace the background region with the object.
-        #     bg[max(0, y):min(y + h, bh), max(0, x):min(x + w, bw)] = obj
-        #
-        # return bg, bg_alpha
         if obj_img.shape[2] == 4:
             alpha = obj_img[fh:th, fw:tw, -1] / 255.0
             alpha_n = np.array([alpha] * 3).transpose((1, 2, 0))

@@ -1,5 +1,3 @@
-from msilib import Binary
-
 import torch
 import time
 import shutil
@@ -15,7 +13,7 @@ from other.data.datasets import (CocoDataset, SyntheticDataset, MixedDataset, Tr
                                  val_base_transform, val_input_to_tensor_transform)
 
 # Model selection and utility functions for counting parameters and estimating VRAM usage
-from other.models.models_handler import MODELS, count_parameters, estimate_vram_usage
+from other.models.models_handler import MODELS, count_parameters, estimate_vram_usage , get_flops
 
 # Utility functions for file management, logging, and plotting training history
 from other.utils import (find_model_in_dir_or_path, find_last_model_in_tree, print_as_table,
@@ -33,7 +31,7 @@ from torch.profiler import profile, record_function, ProfilerActivity
 # Automatic mixed precision (AMP) for FP16 training
 from torch.amp import autocast, GradScaler
 from segmentation_models_pytorch.losses import DiceLoss , FocalLoss
-from monai.losses import GeneralizedDiceLoss
+from monai.losses import GeneralizedDiceLoss, TverskyLoss
 
 if __name__ == '__main__':
     # Load training arguments from parser. This includes all hyperparameters and directory paths.
@@ -48,11 +46,12 @@ if __name__ == '__main__':
     train_coco_dataset = CocoDataset(
         cocodataset_path=train_coco_data_dir,
         transform=TripletTransform(
-            transform=apply_custom_transform,  # Custom augmentation function for foreground objects.
+            transform=apply_custom_transform,  # Custom augmentation function for background images.
             base_transform=base_transform,  # Base transformation applied to the input images.
             input_to_tensor_transform=input_to_tensor_transform  # Converts inputs to PyTorch tensors.
         )
     )
+    # Initialize Mapillary dataset for training with the same transformations as COCO
     train_mapillary_dataset = CocoDataset(
         cocodataset_path=train_mapillary_data_dir,
         transform=TripletTransform(
@@ -62,10 +61,10 @@ if __name__ == '__main__':
         )
     )
 
-    # Create a synthetic dataset (for example, generated images or data augmentation).
+    # Create a synthetic dataset.
     synthetic_dataset = SyntheticDataset(
-        length=None,  # If None, use the default or full dataset length.
-        test_safe_to_desk=False,  # Whether to persist generated data to disk.
+        length=None,  # Use default or full dataset length if None
+        test_safe_to_desk=False,  # Do not persist generated data to disk
     )
 
     # Create a validation COCO dataset with validation-specific transformations.
@@ -170,7 +169,11 @@ if __name__ == '__main__':
 
         # Print model parameter count and estimated VRAM usage for debugging and monitoring.
     print(f"Estimated [parameters: {count_parameters(model)}, vram: {estimate_vram_usage(model):.4f} GB (if float32)]")
-
+    try:
+        gflops = get_flops(model, device=device)
+        print(f"Estimated FLOPs: {gflops:.2f} GFLOPs")
+    except Exception as e:
+        print(f"FLOPs estimation failed: {e}")
     # -------------------------------
     # History Logging Initialization
     # -------------------------------
@@ -221,15 +224,10 @@ if __name__ == '__main__':
     # Training Loop
     # -------------------------------
     for epoch in range(1, do_epoches + 1):
-        # global_epoch = curr_run_start_global_epoch + epoch
-
         global_epoch = curr_run_start_global_epoch + epoch - 1
 
-        # w_bce = float(1 - ((global_epoch - 1) - 75) / 100)
-        # w_boundary = float(global_epoch - 75)
-        w_bce = torch.tensor(1 - ((global_epoch - 1) - 75) / 100, dtype=torch.float16, device=device)
-        w_boundary = torch.tensor((global_epoch - 75), dtype=torch.float16, device=device)
-        print(f"\n{'=' * 100}\n")
+        w_base = torch.tensor(1 - ((global_epoch - 1) - 82) / 100, dtype=torch.float16, device=device)
+        w_boundary = torch.tensor(((global_epoch - 1) - 82), dtype=torch.float16, device=device)
 
         # Set model to training mode.
         model.train()
@@ -239,14 +237,14 @@ if __name__ == '__main__':
         running_whole_count = torch.scalar_tensor(0.0, device=device)
         running_tp = torch.scalar_tensor(0.0, device=device)
         running_fp = torch.scalar_tensor(0.0, device=device)
-        running_fn = torch.scalar_tensor(0.0, device=device)
+        running_fn = torch.scalar_tensor(0.0    , device=device)
 
         # with train_profiler:
         # Iterate over training batches.
         for batch_idx, (batch_inputs, batch_targets, mask) in enumerate(
                 tqdm(train_dataloader, desc=f"Training epoch: {global_epoch} ({epoch}\\{do_epoches}) | ")):
             # -------------------------------\n
-            # Data Transfer: CPU to GPU\n
+            # Data Transfer: CPU to GPU\n   
             # -------------------------------
             with record_function("## CPU Data Transfer ##"):
                 batch_inputs = batch_inputs.to(device, non_blocking=True, memory_format=torch.channels_last).detach()
@@ -259,8 +257,6 @@ if __name__ == '__main__':
             with (((autocast(device_type='cuda')))):
                 with record_function("## GPU Forward Pass ##"):
                     out = model(batch_inputs)
-                    # Ensure the output tensor is contiguous in memory for further processing.
-                    # Ensure the output tensor is contiguous in memory for further processing.
                     out = out.contiguous(memory_format=torch.contiguous_format)
                     # Calculate the comp    osite loss from three components:
                     #   1. Boundary Loss (weighted by alpha)
@@ -269,29 +265,20 @@ if __name__ == '__main__':
                     #   Loss (weighted by gamma)
 
                     with record_function("## Loss Calculation ##"):
-                        # loss = (gamma * F.binary_cross_entropy_with_logits(out, batch_targets.unsqueeze(1),
-                        #                                                    reduction='mean') * w_bce) + (alpha * BoundaryLossCalculator(device=device)(out, batch_targets, mask).mean() * w_boundary)
 
                         loss =(
-                                # alpha * BoundaryLossCalculator(device=device)(out, batch_targets, mask).mean() +
+                                (alpha * BoundaryLossCalculator(device=device)(out, batch_targets, mask).mean()  * w_boundary)+
+                                (
                                 # beta * BlurBoundaryLoss()(out, batch_targets) +
-                                # gamma * F.binary_cross_entropy_with_logits(out, batch_targets.unsqueeze(1),
-                                #                                            reduction='mean')) +
+                                gamma * F.binary_cross_entropy_with_logits(out, batch_targets.unsqueeze(1),
+                                                                           reduction='mean') +
                                 # delta * DiceLoss(mode='binary', log_loss=False)(F.sigmoid(out), batch_targets)
-                                # eta * FocalLoss(mode='binary',alpha=0.75, gamma=1.5)(F.sigmoid(out), batch_targets)
-                                sigma * GeneralizedDiceLoss(sigmoid=True)(out, batch_targets.unsqueeze(1))
+                                # eta * FocalLoss(mode='binary',alpha=0.75, gamma=1)(F.sigmoid(out), batch_targets)
+                                # sigma * GeneralizedDiceLoss(sigmoid=True)(out, batch_targets.unsqueeze(1))
+                                epsilon * TverskyLoss(alpha=0.3, beta=0.7, sigmoid=True,smooth_nr=1, smooth_dr=1)(out, batch_targets.unsqueeze(1))
+                                ) * w_base
                         )
 
-                        # print('BoundaryLossCalculator: ',alpha * BoundaryLossCalculator(device=device)(out, batch_targets, mask).mean())
-                        # print('BlurBoundaryLoss: ',beta * BlurBoundaryLoss()(out, batch_targets))
-                        # print('BCE: ',gamma * F.binary_cross_entropy_with_logits(out, batch_targets.unsqueeze(1),
-                        #                                              reduction='mean'))
-                        # print('Dice_loss: ', delta * DiceLoss(mode='binary')(F.sigmoid(out), batch_targets))
-                        # print('Focal_loss: ', eta * FocalLoss(mode='binary',alpha=0.75, gamma=1.5)(F.sigmoid(out), batch_targets))
-                        # print('BCE: ', gamma * F.binary_cross_entropy_with_logits(out, batch_targets.unsqueeze(1),
-                        #                                                    reduction='mean') * w_bce)
-                        # print('BoundaryLossCalculator: ',alpha * BoundaryLossCalculator(device=device)(out, batch_targets, mask).mean() * w_boundary)
-                        print('Gde:', sigma * GeneralizedDiceLoss(sigmoid=True)(out, batch_targets.unsqueeze(1)))
                     # Normalize loss by the number of accumulation steps.
                     loss = loss / accumulation_steps
 
@@ -389,25 +376,18 @@ if __name__ == '__main__':
                     with autocast(device_type='cuda'):
                         out = model(batch_inputs)
                         out = out.contiguous(memory_format=torch.contiguous_format)
-                        loss = (
-                                # alpha * BoundaryLossCalculator(device=device)(out, batch_targets, mask).mean() +
+                        loss =(
+                                (alpha * BoundaryLossCalculator(device=device)(out, batch_targets, mask).mean() * w_boundary)+
+                                (
                                 # beta * BlurBoundaryLoss()(out, batch_targets) +
-                                # gamma * F.binary_cross_entropy_with_logits(out, batch_targets.unsqueeze(1),
-                                #                                            reduction='mean') +
-                                # delta * DiceLoss(mode='binary')(F.sigmoid(out), batch_targets)
-                                # eta * FocalLoss(mode='binary',alpha=0.75, gamma=1.5)(F.sigmoid(out), batch_targets)
-                                sigma * GeneralizedDiceLoss(sigmoid=True)(out, batch_targets.unsqueeze(1))
+                                gamma * F.binary_cross_entropy_with_logits(out, batch_targets.unsqueeze(1),
+                                                                           reduction='mean') +
+                                # delta * DiceLoss(mode='binary', log_loss=False)(F.sigmoid(out), batch_targets)
+                                # eta * FocalLoss(mode='binary',alpha=0.75, gamma=1)(F.sigmoid(out), batch_targets)
+                                # sigma * GeneralizedDiceLoss(sigmoid=True)(out, batch_targets.unsqueeze(1))
+                                epsilon * TverskyLoss(alpha=0.3, beta=0.7, sigmoid=True,smooth_nr=1, smooth_dr=1)(out, batch_targets.unsqueeze(1))
+                                ) * w_base
                         )
-                        # loss = (gamma * F.binary_cross_entropy_with_logits(out, batch_targets.unsqueeze(1),
-                        #                                                    reduction='mean') * w_bce) + (
-                        #                    alpha * BoundaryLossCalculator(device=device)(out, batch_targets,
-                        #                                                                  mask).mean() * w_boundary)
-
-                        # loss = (
-                        #         alpha * BoundaryLossCalculator(device=device)(out, batch_targets, mask).mean() +
-                        #         # beta * BlurBoundaryLoss()(out, batch_targets) +
-                        #         gamma * F.binary_cross_entropy_with_logits(out, batch_targets.unsqueeze(1),
-                        #                                                    reduction='mean'))
                     val_running_loss += loss.detach() * val_samples_count
                     val_whole_count += val_samples_count
 

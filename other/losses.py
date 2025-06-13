@@ -136,4 +136,8 @@ class BoundaryLossCalculator(nn.Module):
         s_theta = torch.sigmoid(outputs)
         # Multiply the activated outputs with the boundary weight map, then sum over all pixels.
         loss = (masks.unsqueeze(1) * s_theta).sum(dim=(1,2, 3))
+
+        # H, W = outputs.shape[-2:]
+        # loss = loss / (H * W)
+
         return loss

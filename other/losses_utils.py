@@ -181,6 +181,7 @@ class DistanceCalculator:
                         max_val = cp.amax(distance_map, keepdims=True)
                         # Normalize the distance map to [0, 1]
                         distance_maps[b, c] = distance_map / cp.maximum(max_val, 1e-6)
+                        # distance_maps[b, c] = distance_map
             return torch.as_tensor(distance_maps)
 
 
@@ -218,5 +219,6 @@ class DistanceCalculator:
                     max_val = np.max(distance_map,keepdims=True)
                     # Normalize the distance map; prevent division by zero.
                     distance_maps[b, c] = distance_map / max(max_val, 1e-6)
+                    # distance_maps[b, c] = distance_map
         # Return the computed distance maps as a torch.Tensor (float32)
         return torch.tensor(distance_maps, dtype=torch.float32)

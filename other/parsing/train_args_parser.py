@@ -270,7 +270,7 @@ if natural_data_mask_saving and natural_data_mask_pre_calculation_mode:
     raise ValueError('Only one of them can be declared')
 
 # Training hyperparameters.
-lr = 10 ** is_range(ydict['train']['lr'], -10, 10)
+lr = 5 * 10 ** is_range(ydict['train']['lr'], -10, 10)
 enable_lr_reset = is_type_of(ydict['train']['enable_lr_reset'], bool)
 scheduler_available = is_type_of(ydict['train']['scheduler_available'], bool)
 if enable_lr_reset:
@@ -287,6 +287,7 @@ gamma = is_range(ydict['train']['gamma'], 0.0, 10**2, float)
 delta = is_range(ydict['train']['delta'], 0.0, 10**2, float)
 eta = is_range(ydict['train']['eta'], 0.0, 10**2, float)
 sigma = is_range(ydict['train']['sigma'], 0.0, 10**2, float)
+epsilon = is_range(ydict['train']['epsilon'], 0.0, 10**2, float)
 
 
 # Checkpoint saving logic.

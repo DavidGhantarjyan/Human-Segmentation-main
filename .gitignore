@@ -26,8 +26,6 @@ trt_cache/
 train_results/
 CocoData/eval_metrix_dataset/
 CocoData/model_test/
-SyntheticData_main/Obj/
-SyntheticData_main/Obj_cut/
 SyntheticData_main/Obj_Greenscreen/
 SyntheticData_main/PortraitBackgrounds/
 SyntheticData_main/TikTok_dataset/
@@ -38,4 +36,3 @@ CocoData/train_coco_dataset_without_obj/
 CocoData/train_mapillary_without_obj/
 CocoData/val_coco_dataset_without_obj/
 other/models/*.onnx
-other/models/__init__.py

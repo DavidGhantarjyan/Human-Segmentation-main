@@ -1,4 +1,6 @@
 from other.models.unet_models import UNet_MobileNet, MobileNetV1Block, MobileNetV2Block, MobileNetV3Block
+import torch
+from fvcore.nn import FlopCountAnalysis
 # from other.models.unet_models import UNet, UNet_MobileNet, MobileNetV1Block, MobileNetV2Block, MobileNetV3Block
 
 mobilenet_block_names = {
@@ -53,3 +55,9 @@ def estimate_vram_usage(model, include_gradients=True):
 
     # Convert to (GB)
     return param_memory / (1024 ** 3)
+
+def get_flops(model, input_shape=(1, 3, 320, 180), device="gpu"):
+    model.eval()
+    dummy_input = torch.randn(*input_shape).to(device)
+    flops = FlopCountAnalysis(model, dummy_input)
+    return flops.total() / 1e9  # GFLOPs
