@@ -5,7 +5,7 @@ This project presents a robust and efficient solution for human semantic segment
 ## Demo
 Watch a real-time demonstration of our human semantic segmentation model, illustrating its performance across a variety of poses, backgrounds, and lighting conditions. The video showcases both the initial segmentation output and the refined masks produced using Guided Filter post-processing, all running at real-time inference speed.
 
-First example video: [See the demo in action](https://youtu.be/R8EFysgOZIw?si=tAVhUdEhBwHUd2Pn)
+First example video: [See the demo in action](https://youtu.be/R8EFysgOZIw?si=tAVhUdEhBwHUd2Pn);
 Second example video: [Explore another real-time demo](https://youtu.be/Vr9_3FyDhZQ?si=oNgMh36la884cyqL)
 
 ## Key Features
