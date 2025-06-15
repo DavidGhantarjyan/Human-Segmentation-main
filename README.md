@@ -5,7 +5,8 @@ This project presents a robust and efficient solution for human semantic segment
 ## Demo
 Watch a real-time demonstration of our human semantic segmentation model, showcasing its performance across diverse poses, backgrounds, and lighting conditions. The video highlights both the raw segmentation output and the refined masks achieved through the Guided Filter post-processing, alongside real-time inference speed.
 
-Example Markdown for a YouTube video: [Watch the demo video](https://youtu.be/R8EFysgOZIw?si=tAVhUdEhBwHUd2Pn, https://youtu.be/Vr9_3FyDhZQ?si=oNgMh36la884cyqL)
+First Example video: [Watch the demo video](https://youtu.be/R8EFysgOZIw?si=tAVhUdEhBwHUd2Pn)
+Second Example video: [Watch the demo video](https://youtu.be/Vr9_3FyDhZQ?si=oNgMh36la884cyqL)
 
 ## Key Features
 - **Lightweight Architectures**: Utilizes UNet with MobileNetV1, V2, or V3 encoders to significantly reduce model parameters and computational complexity (GFLOPs) compared to traditional, heavier segmentation models.
