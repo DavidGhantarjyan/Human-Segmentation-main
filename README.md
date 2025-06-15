@@ -3,10 +3,10 @@
 This project presents a robust and efficient solution for human semantic segmentation, specifically optimized for real-time applications on devices with limited computational resources, such as mobile phones. It leverages lightweight neural network architectures, advanced data handling techniques, and specialized loss functions to achieve high accuracy segmentation masks. The core innovation lies in combining efficient model architectures with sophisticated training methodologies and post-processing steps to deliver superior performance.
 
 ## Demo
-Watch a real-time demonstration of our human semantic segmentation model, showcasing its performance across diverse poses, backgrounds, and lighting conditions. The video highlights both the raw segmentation output and the refined masks achieved through the Guided Filter post-processing, alongside real-time inference speed.
+Watch a real-time demonstration of our human semantic segmentation model, illustrating its performance across a variety of poses, backgrounds, and lighting conditions. The video showcases both the initial segmentation output and the refined masks produced using Guided Filter post-processing, all running at real-time inference speed.
 
-First Example video: [Watch the demo video](https://youtu.be/R8EFysgOZIw?si=tAVhUdEhBwHUd2Pn)
-Second Example video: [Watch the demo video](https://youtu.be/Vr9_3FyDhZQ?si=oNgMh36la884cyqL)
+First example video: [See the demo in action](https://youtu.be/R8EFysgOZIw?si=tAVhUdEhBwHUd2Pn)
+Second example video: [Explore another real-time demo](https://youtu.be/Vr9_3FyDhZQ?si=oNgMh36la884cyqL)
 
 ## Key Features
 - **Lightweight Architectures**: Utilizes UNet with MobileNetV1, V2, or V3 encoders to significantly reduce model parameters and computational complexity (GFLOPs) compared to traditional, heavier segmentation models.
