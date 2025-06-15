@@ -78,7 +78,7 @@ The research conclusively demonstrates that integrating lightweight MobileNetV1 
 ## Demo
 Watch a real-time demonstration of our human semantic segmentation model, showcasing its performance across diverse poses, backgrounds, and lighting conditions. The video highlights both the raw segmentation output and the refined masks achieved through the Guided Filter post-processing, alongside real-time inference speed.
 
-Example Markdown for a YouTube video: [Watch the demo video](https://www.youtube.com/watch?v=your_video_id)
+Example Markdown for a YouTube video: [Watch the demo video](https://studio.youtube.com/video/R8EFysgOZIw/edit)
 
 ## Future Work
 - **Differentiable Guided Filter**: A promising direction is to integrate the Guided Filter directly into the neural network architecture as a differentiable layer. This would allow for end-to-end training, enabling the filter parameters to be learned jointly with the network weights, potentially leading to further improvements in segmentation quality.
