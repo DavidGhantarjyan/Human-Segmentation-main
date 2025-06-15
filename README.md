@@ -2,6 +2,11 @@
 
 This project presents a robust and efficient solution for human semantic segmentation, specifically optimized for real-time applications on devices with limited computational resources, such as mobile phones. It leverages lightweight neural network architectures, advanced data handling techniques, and specialized loss functions to achieve high accuracy segmentation masks. The core innovation lies in combining efficient model architectures with sophisticated training methodologies and post-processing steps to deliver superior performance.
 
+## Demo
+Watch a real-time demonstration of our human semantic segmentation model, showcasing its performance across diverse poses, backgrounds, and lighting conditions. The video highlights both the raw segmentation output and the refined masks achieved through the Guided Filter post-processing, alongside real-time inference speed.
+
+Example Markdown for a YouTube video: [Watch the demo video](https://youtu.be/R8EFysgOZIw?si=tAVhUdEhBwHUd2Pn)
+
 ## Key Features
 - **Lightweight Architectures**: Utilizes UNet with MobileNetV1, V2, or V3 encoders to significantly reduce model parameters and computational complexity (GFLOPs) compared to traditional, heavier segmentation models.
 - **Advanced Loss Functions**: Employs a unique and carefully tuned combination of Binary Cross-Entropy (BCE), Tversky Loss or Generalized Dice Loss (GDL), and Boundary Loss for robust training, effectively addressing challenges like class imbalance and refining object boundaries.
@@ -74,11 +79,6 @@ Featuring significantly fewer parameters (~3 million) and lower computational co
 
 ## Conclusion
 The research conclusively demonstrates that integrating lightweight MobileNetV1 and MobileNetV3 blocks into the U-Net architecture provides a highly effective solution for accurate human semantic segmentation under limited computational resources. The MobileNetV3-based UNet excels in overall segmentation quality (Recall, F1, IoU) with a remarkably lower parameter count and computational complexity. Conversely, the MobileNetV1-based UNet shows better GPU inference speed, likely due to more efficient utilization of cuDNN library optimization and parallel processing capabilities inherent in its design. Notably, MobileNetV3 exhibits superior performance on CPU platforms, making it a versatile choice depending on the deployment environment.
-
-## Demo
-Watch a real-time demonstration of our human semantic segmentation model, showcasing its performance across diverse poses, backgrounds, and lighting conditions. The video highlights both the raw segmentation output and the refined masks achieved through the Guided Filter post-processing, alongside real-time inference speed.
-
-Example Markdown for a YouTube video: [Watch the demo video](https://youtu.be/R8EFysgOZIw?si=tAVhUdEhBwHUd2Pn)
 
 ## Future Work
 - **Differentiable Guided Filter**: A promising direction is to integrate the Guided Filter directly into the neural network architecture as a differentiable layer. This would allow for end-to-end training, enabling the filter parameters to be learned jointly with the network weights, potentially leading to further improvements in segmentation quality.
